@@ -63,19 +63,43 @@ export function SubscriptionUsageTracking() {
     try {
       setLoading(true);
       const res = await authFetch('/api/usage/subscriptions');
-      const list = res.subscriptions || [];
+      const list = res?.subscriptions || [];
       setSubscriptions(list);
       if (list.length > 0) {
         const subIdToLoad = forceSubId || (selectedSubId && list.some(s => s.id === selectedSubId) ? selectedSubId : list[0].id);
         setSelectedSubId(subIdToLoad);
         await loadUsageData(subIdToLoad);
       } else {
-        // Customer has no active subscriptions
+        // Fallback: check /api/usage/current directly in case single sub exists
+        try {
+          const directCurrent = await authFetch('/api/usage/current');
+          if (directCurrent && !directCurrent.noSubscription && directCurrent.subscription) {
+            setData(directCurrent);
+            setSelectedSubId(directCurrent.subscription.id);
+            setSubscriptions([directCurrent.subscription]);
+            setLoading(false);
+            return;
+          }
+        } catch (e) {
+          // ignore fallback error
+        }
         setData({ noSubscription: true });
         setLoading(false);
       }
     } catch (err) {
       console.error('Failed to load subscriptions:', err);
+      try {
+        const directCurrent = await authFetch('/api/usage/current');
+        if (directCurrent && !directCurrent.noSubscription && directCurrent.subscription) {
+          setData(directCurrent);
+          setSelectedSubId(directCurrent.subscription.id);
+          setSubscriptions([directCurrent.subscription]);
+          setLoading(false);
+          return;
+        }
+      } catch (e) {
+        // ignore
+      }
       setData({ noSubscription: true });
       setLoading(false);
     }
@@ -105,7 +129,9 @@ export function SubscriptionUsageTracking() {
       }
     } catch (err) {
       console.error('Failed to load usage data:', err);
-      setData({ noSubscription: true });
+      if (err.status === 404) {
+        setData({ noSubscription: true });
+      }
     } finally {
       setLoading(false);
     }
@@ -113,7 +139,7 @@ export function SubscriptionUsageTracking() {
 
   useEffect(() => {
     loadSubscriptions();
-  }, []);
+  }, [user?.id, user?.email]);
 
   // Open Feature Drilldown Details
   const handleOpenFeatureDetail = async (featureKey) => {
