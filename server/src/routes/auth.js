@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'node:crypto';
 import { db } from '../db/database.js';
 import { JWT_SECRET, authenticate, validatePassword } from '../middleware/auth.js';
+import { sendRealEmail } from '../services/notificationService.js';
 
 const router = express.Router();
 
@@ -134,10 +135,8 @@ router.post('/forgot-password', (req, res) => {
 
   const user = db.prepare('SELECT id, email, name FROM users WHERE LOWER(email) = LOWER(?)').get(email.trim());
   if (!user) {
-    // For security, still return success message or inform in demo mode
-    return res.json({
-      message: 'If the email is registered, a password reset link has been sent.',
-      simulation: null
+    return res.status(404).json({
+      error: `No account registered with "${email.trim()}". Please register an account or check for typos.`
     });
   }
 
@@ -151,15 +150,46 @@ router.post('/forgot-password', (req, res) => {
   `).run(resetToken, expiry, user.id);
 
   const resetUrl = `/reset-password?token=${resetToken}`;
+  const fullResetUrl = `http://localhost:5173/reset-password?token=${resetToken}`;
 
-  // Log simulation
+  // Log activity
   db.prepare(`
     INSERT INTO activity_logs (type, title, details, target_id, target_type, created_by)
     VALUES (?, ?, ?, ?, ?, ?)
   `).run('password_reset', 'Password Reset Link Generated', `Sent password reset link to ${user.email}`, user.id, 'user', 'System');
 
+  // Dispatch real email via SMTP
+  sendRealEmail({
+    to: user.email,
+    subject: 'Reset Your Brightloop Password',
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 28px; max-width: 550px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px;">
+        <div style="background: #4f46e5; color: white; padding: 12px 18px; border-radius: 8px; font-weight: bold; margin-bottom: 20px; font-size: 15px;">
+          Brightloop Account Security
+        </div>
+        <h2 style="color: #1e1b4b; margin-top: 0;">Password Reset Request</h2>
+        <p style="color: #475569; font-size: 14px; line-height: 1.6;">
+          Hello <strong>${user.name || user.email}</strong>,<br><br>
+          We received a request to reset your password. Click the secure link below to choose a new password:
+        </p>
+        <div style="margin: 24px 0; text-align: center;">
+          <a href="${fullResetUrl}" style="background: #4f46e5; color: #ffffff; padding: 12px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 14px; display: inline-block;">
+            Reset Your Password
+          </a>
+        </div>
+        <p style="color: #64748b; font-size: 12px; line-height: 1.5; border-top: 1px solid #f1f5f9; padding-top: 14px;">
+          Or copy and paste this URL into your browser:<br>
+          <a href="${fullResetUrl}" style="color: #4f46e5; word-break: break-all;">${fullResetUrl}</a>
+        </p>
+        <p style="color: #94a3b8; font-size: 11px; margin-top: 12px;">
+          This link will expire in 1 hour. If you did not make this request, you can safely ignore this email.
+        </p>
+      </div>
+    `
+  }).catch(e => console.error('Real email dispatch error for password reset:', e));
+
   res.json({
-    message: 'A password reset link has been generated and sent to the registered email.',
+    message: 'A password reset link has been generated and dispatched to your email.',
     simulation: {
       email: user.email,
       resetToken,

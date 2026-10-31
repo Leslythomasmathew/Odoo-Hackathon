@@ -12,14 +12,27 @@ export function ForgotPassword() {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setResult(null);
 
     try {
       const res = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email: email.trim() })
       });
-      const data = await res.json();
+
+      const text = await res.text();
+      let data = null;
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        throw new Error(res.ok ? 'Invalid response format from server.' : `Server error (${res.status}). Please try again.`);
+      }
+
+      if (!res.ok) {
+        throw new Error(data?.error || data?.message || `Request failed (${res.status})`);
+      }
+
       setResult(data);
     } catch (err) {
       setError(err.message || 'Failed to submit request.');
@@ -69,9 +82,19 @@ export function ForgotPassword() {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               {error && (
-                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{error}</span>
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 flex flex-col gap-1.5">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                  {error.includes('No account registered') && (
+                    <Link
+                      to="/register"
+                      className="inline-block mt-1 text-xs font-bold text-primary-700 underline hover:text-primary-800"
+                    >
+                      Click here to create a new customer account &rarr;
+                    </Link>
+                  )}
                 </div>
               )}
 
@@ -100,10 +123,13 @@ export function ForgotPassword() {
             </form>
           )}
 
-          <div className="mt-6 pt-4 border-t border-slate-100 text-center">
+          <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs">
             <Link to="/login" className="inline-flex items-center gap-1 font-bold text-slate-600 hover:text-slate-900">
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>Back to Login</span>
+            </Link>
+            <Link to="/register" className="font-bold text-primary-600 hover:text-primary-800">
+              Create an Account &rarr;
             </Link>
           </div>
         </div>
