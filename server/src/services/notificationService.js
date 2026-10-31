@@ -506,3 +506,72 @@ export async function dispatchNotification({
 
   return db.prepare('SELECT * FROM customer_notifications WHERE id = ?').get(notifId);
 }
+
+/**
+ * Automated due date reminder scanner
+ * Automatically sends payment reminders 7, 3, 1, or 0 days before invoice due date.
+ */
+export async function checkAndSendAutomatedDueReminders() {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const today = new Date(todayStr);
+
+  const openInvoices = db.prepare(`
+    SELECT i.*, c.email as customer_email, c.name as customer_name
+    FROM invoices i
+    JOIN customers c ON i.customer_id = c.id
+    WHERE i.status NOT IN ('paid', 'cancelled')
+  `).all();
+
+  const dispatched = [];
+
+  for (const inv of openInvoices) {
+    const paidRow = db.prepare('SELECT COALESCE(SUM(amount), 0) as paid FROM payments WHERE invoice_id = ?').get(inv.id);
+    const outstanding = Math.max(0, Number((inv.total - Number(paidRow.paid || 0)).toFixed(2)));
+    if (outstanding <= 0) continue;
+
+    inv.outstanding = outstanding;
+
+    const dueDate = new Date(inv.due_date);
+    const diffDays = Math.round((dueDate - today) / (1000 * 60 * 60 * 24));
+
+    // Remind if due date is within 7 days, 3 days, 1 day, or today
+    if ([7, 3, 1, 0].includes(diffDays)) {
+      // Check if already sent a reminder today
+      const alreadySent = db.prepare(`
+        SELECT id FROM customer_notifications
+        WHERE invoice_id = ? AND type = 'invoice_due' AND date(sent_at) = date('now')
+      `).get(inv.id);
+
+      if (!alreadySent && inv.customer_email) {
+        const items = db.prepare('SELECT * FROM invoice_lines WHERE invoice_id = ?').all(inv.id);
+        const reminder = buildInvoiceReminderTemplate({
+          invoice: inv,
+          customer: { name: inv.customer_name, email: inv.customer_email },
+          items,
+          isOverdue: false
+        });
+
+        const notif = await dispatchNotification({
+          customer_id: inv.customer_id,
+          invoice_id: inv.id,
+          type: 'invoice_due',
+          channel: 'email',
+          subject: reminder.subject,
+          email_html: reminder.emailHtml,
+          recipient_email: inv.customer_email,
+          created_by: 'Automated Due Scheduler'
+        });
+
+        dispatched.push({
+          invoice_number: inv.number,
+          customer_email: inv.customer_email,
+          due_date: inv.due_date,
+          days_until_due: diffDays,
+          notification_id: notif.id
+        });
+      }
+    }
+  }
+
+  return { count: dispatched.length, dispatched };
+}

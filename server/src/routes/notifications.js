@@ -8,7 +8,8 @@ import {
   dispatchNotification,
   getAllSettings,
   setSetting,
-  sendRealEmail
+  sendRealEmail,
+  checkAndSendAutomatedDueReminders
 } from '../services/notificationService.js';
 
 const router = express.Router();
@@ -309,6 +310,21 @@ router.post('/remind-all-due', authenticate, requireRole(['admin', 'staff']), (r
     message: `Dispatched payment reminders for ${dispatched.length} open invoices via Email.`,
     dispatched
   });
+});
+
+/**
+ * Trigger automated due date reminder scanner
+ */
+router.post('/run-due-scheduler', authenticate, requireRole(['admin', 'staff']), async (req, res) => {
+  try {
+    const result = await checkAndSendAutomatedDueReminders();
+    res.json({
+      message: `Automated Due Scheduler processed: ${result.count} reminders sent.`,
+      ...result
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 /**

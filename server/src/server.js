@@ -24,6 +24,7 @@ import reportRoutes from './routes/reports.js';
 import systemRoutes from './routes/system.js';
 import notificationRoutes from './routes/notifications.js';
 import usageRoutes from './routes/usage.js';
+import { checkAndSendAutomatedDueReminders } from './services/notificationService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -87,6 +88,14 @@ const isTestMode = process.env.NODE_ENV === 'test' || process.argv.some(arg => a
 if (!isTestMode) {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Brightloop Subscription System API running on http://localhost:${PORT} and http://127.0.0.1:${PORT}`);
+
+    // Background automated due reminder checks (runs on startup after 5s, then every hour)
+    setTimeout(() => {
+      checkAndSendAutomatedDueReminders().catch(e => console.error('Automated due reminder error:', e.message));
+    }, 5000);
+    setInterval(() => {
+      checkAndSendAutomatedDueReminders().catch(e => console.error('Automated due reminder error:', e.message));
+    }, 3600000);
   });
 }
 
