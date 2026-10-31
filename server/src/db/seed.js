@@ -502,7 +502,7 @@ export function seedData(force = false) {
   // Starter Growth Monthly Plan
   insertPlanFeature.run(Number(planStarter.lastInsertRowid), Number(featInvoices.lastInsertRowid), 50, 0, 1, 1.50, 'billing_period', 'overage');
   insertPlanFeature.run(Number(planStarter.lastInsertRowid), Number(featStaff.lastInsertRowid), 3, 0, 0, 0.0, 'billing_period', 'hard_limit');
-  insertPlanFeature.run(Number(planStarter.lastInsertRowid), Number(featApi.lastInsertRowid), 5000, 0, 1, 0.01, 'billing_period', 'overage');
+  insertPlanFeature.run(Number(planStarter.lastInsertRowid), Number(featApi.lastInsertRowid), 100, 0, 1, 0.01, 'billing_period', 'overage');
   insertPlanFeature.run(Number(planStarter.lastInsertRowid), Number(featStorage.lastInsertRowid), 10, 0, 1, 4.00, 'billing_period', 'overage');
   insertPlanFeature.run(Number(planStarter.lastInsertRowid), Number(featReports.lastInsertRowid), 10, 0, 0, 0.0, 'billing_period', 'soft_alert');
   insertPlanFeature.run(Number(planStarter.lastInsertRowid), Number(featBranding.lastInsertRowid), 0, 0, 0, 0.0, 'never', 'hard_limit');
@@ -510,31 +510,31 @@ export function seedData(force = false) {
   // Professional Yearly Plan (includes exclusive erp_sync and priority_support)
   insertPlanFeature.run(Number(planProYearly.lastInsertRowid), Number(featInvoices.lastInsertRowid), 500, 0, 1, 1.00, 'billing_period', 'overage');
   insertPlanFeature.run(Number(planProYearly.lastInsertRowid), Number(featStaff.lastInsertRowid), 15, 0, 0, 0.0, 'billing_period', 'hard_limit');
-  insertPlanFeature.run(Number(planProYearly.lastInsertRowid), Number(featApi.lastInsertRowid), 50000, 0, 1, 0.005, 'billing_period', 'overage');
+  insertPlanFeature.run(Number(planProYearly.lastInsertRowid), Number(featApi.lastInsertRowid), 100, 0, 1, 0.005, 'billing_period', 'overage');
   insertPlanFeature.run(Number(planProYearly.lastInsertRowid), Number(featStorage.lastInsertRowid), 100, 0, 1, 2.50, 'billing_period', 'overage');
   insertPlanFeature.run(Number(planProYearly.lastInsertRowid), Number(featReports.lastInsertRowid), 100, 0, 0, 0.0, 'billing_period', 'soft_alert');
   insertPlanFeature.run(Number(planProYearly.lastInsertRowid), Number(featPriority.lastInsertRowid), null, 1, 0, 0.0, 'never', 'soft_alert');
   insertPlanFeature.run(Number(planProYearly.lastInsertRowid), Number(featBranding.lastInsertRowid), null, 1, 0, 0.0, 'never', 'soft_alert');
-  insertPlanFeature.run(Number(planProYearly.lastInsertRowid), Number(featErp.lastInsertRowid), 2500, 0, 1, 0.05, 'billing_period', 'overage');
+  insertPlanFeature.run(Number(planProYearly.lastInsertRowid), Number(featErp.lastInsertRowid), 100, 0, 1, 0.05, 'billing_period', 'overage');
 
   // Enterprise Scale Yearly Plan (includes exclusive ai_report_generation, unlimited invoices and reports)
   insertPlanFeature.run(Number(planEnterprise.lastInsertRowid), Number(featInvoices.lastInsertRowid), null, 1, 0, 0.0, 'billing_period', 'soft_alert');
   insertPlanFeature.run(Number(planEnterprise.lastInsertRowid), Number(featStaff.lastInsertRowid), 100, 0, 0, 0.0, 'billing_period', 'hard_limit');
-  insertPlanFeature.run(Number(planEnterprise.lastInsertRowid), Number(featApi.lastInsertRowid), 250000, 0, 1, 0.002, 'billing_period', 'overage');
+  insertPlanFeature.run(Number(planEnterprise.lastInsertRowid), Number(featApi.lastInsertRowid), 100, 0, 1, 0.002, 'billing_period', 'overage');
   insertPlanFeature.run(Number(planEnterprise.lastInsertRowid), Number(featStorage.lastInsertRowid), 500, 0, 1, 1.50, 'billing_period', 'overage');
   insertPlanFeature.run(Number(planEnterprise.lastInsertRowid), Number(featReports.lastInsertRowid), null, 1, 0, 0.0, 'billing_period', 'soft_alert');
   insertPlanFeature.run(Number(planEnterprise.lastInsertRowid), Number(featPriority.lastInsertRowid), null, 1, 0, 0.0, 'never', 'soft_alert');
   insertPlanFeature.run(Number(planEnterprise.lastInsertRowid), Number(featBranding.lastInsertRowid), null, 1, 0, 0.0, 'never', 'soft_alert');
-  insertPlanFeature.run(Number(planEnterprise.lastInsertRowid), Number(featErp.lastInsertRowid), 10000, 0, 1, 0.02, 'billing_period', 'overage');
+  insertPlanFeature.run(Number(planEnterprise.lastInsertRowid), Number(featErp.lastInsertRowid), 100, 0, 1, 0.02, 'billing_period', 'overage');
   insertPlanFeature.run(Number(planEnterprise.lastInsertRowid), Number(featAi.lastInsertRowid), 500, 0, 1, 0.50, 'billing_period', 'overage');
 
   // Agile Sprint Weekly Plan
   insertPlanFeature.run(Number(planSprintWeekly.lastInsertRowid), Number(featInvoices.lastInsertRowid), 15, 0, 0, 0.0, 'billing_period', 'soft_alert');
-  insertPlanFeature.run(Number(planSprintWeekly.lastInsertRowid), Number(featApi.lastInsertRowid), 1000, 0, 0, 0.0, 'billing_period', 'soft_alert');
+  insertPlanFeature.run(Number(planSprintWeekly.lastInsertRowid), Number(featApi.lastInsertRowid), 100, 0, 0, 0.0, 'billing_period', 'soft_alert');
 
   // Sandbox Test Daily Plan
   insertPlanFeature.run(Number(planSandboxDaily.lastInsertRowid), Number(featInvoices.lastInsertRowid), 5, 0, 0, 0.0, 'billing_period', 'hard_limit');
-  insertPlanFeature.run(Number(planSandboxDaily.lastInsertRowid), Number(featApi.lastInsertRowid), 200, 0, 0, 0.0, 'billing_period', 'hard_limit');
+  insertPlanFeature.run(Number(planSandboxDaily.lastInsertRowid), Number(featApi.lastInsertRowid), 100, 0, 0, 0.0, 'billing_period', 'hard_limit');
 
   // 13. Seed Usage Periods and Actual Usage for Subscriptions
   const insertUsagePeriod = db.prepare(`

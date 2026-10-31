@@ -63,19 +63,43 @@ export function SubscriptionUsageTracking() {
     try {
       setLoading(true);
       const res = await authFetch('/api/usage/subscriptions');
-      const list = res.subscriptions || [];
+      const list = res?.subscriptions || [];
       setSubscriptions(list);
       if (list.length > 0) {
         const subIdToLoad = forceSubId || (selectedSubId && list.some(s => s.id === selectedSubId) ? selectedSubId : list[0].id);
         setSelectedSubId(subIdToLoad);
         await loadUsageData(subIdToLoad);
       } else {
-        // Customer has no active subscriptions
+        // Fallback: check /api/usage/current directly in case single sub exists
+        try {
+          const directCurrent = await authFetch('/api/usage/current');
+          if (directCurrent && !directCurrent.noSubscription && directCurrent.subscription) {
+            setData(directCurrent);
+            setSelectedSubId(directCurrent.subscription.id);
+            setSubscriptions([directCurrent.subscription]);
+            setLoading(false);
+            return;
+          }
+        } catch (e) {
+          // ignore fallback error
+        }
         setData({ noSubscription: true });
         setLoading(false);
       }
     } catch (err) {
       console.error('Failed to load subscriptions:', err);
+      try {
+        const directCurrent = await authFetch('/api/usage/current');
+        if (directCurrent && !directCurrent.noSubscription && directCurrent.subscription) {
+          setData(directCurrent);
+          setSelectedSubId(directCurrent.subscription.id);
+          setSubscriptions([directCurrent.subscription]);
+          setLoading(false);
+          return;
+        }
+      } catch (e) {
+        // ignore
+      }
       setData({ noSubscription: true });
       setLoading(false);
     }
@@ -105,7 +129,9 @@ export function SubscriptionUsageTracking() {
       }
     } catch (err) {
       console.error('Failed to load usage data:', err);
-      setData({ noSubscription: true });
+      if (err.status === 404) {
+        setData({ noSubscription: true });
+      }
     } finally {
       setLoading(false);
     }
@@ -113,7 +139,7 @@ export function SubscriptionUsageTracking() {
 
   useEffect(() => {
     loadSubscriptions();
-  }, []);
+  }, [user?.id, user?.email]);
 
   // Open Feature Drilldown Details
   const handleOpenFeatureDetail = async (featureKey) => {
@@ -295,36 +321,39 @@ export function SubscriptionUsageTracking() {
   return (
     <div className="space-y-6">
       {/* 1. Header Banner & Plan Context */}
-      <div className="bg-gradient-to-r from-primary-950 via-primary-900 to-indigo-900 text-white rounded-2xl p-6 sm:p-8 shadow-sm">
+      <div
+        className="bg-gradient-to-r from-primary-900 via-indigo-900 to-indigo-800 text-white rounded-2xl p-6 sm:p-8 shadow-md border border-indigo-950/30"
+        style={{ backgroundColor: '#312e81' }}
+      >
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center font-bold text-lg text-white shadow-inner">
-              <Gauge className="w-6 h-6 text-indigo-300" />
+            <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center font-bold text-lg text-white shadow-inner">
+              <Gauge className="w-6 h-6 text-indigo-200" />
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-2xl font-bold tracking-tight">Subscription Usage Tracking</h1>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/30">
+                <h1 className="text-2xl font-bold tracking-tight text-white drop-shadow-xs">Subscription Usage Tracking</h1>
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-500/40 text-indigo-100 border border-indigo-300/30 shadow-xs">
                   {subscription?.plan_name}
                 </span>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 border border-emerald-400/40 font-semibold shadow-xs">
                   {subscription?.status}
                 </span>
               </div>
-              <p className="text-xs text-primary-200 mt-1 flex items-center gap-2 flex-wrap">
+              <p className="text-xs text-indigo-200 mt-1 flex items-center gap-2 flex-wrap">
                 <span>Contract #{subscription?.number}</span>
                 <span>•</span>
                 <span>Customer: <strong className="text-white">{subscription?.customer_name}</strong> ({subscription?.customer_company || 'Personal'})</span>
                 <span>•</span>
-                <span>Cycle: {subscription?.billing_period}</span>
+                <span>Cycle: <strong className="capitalize text-white">{subscription?.billing_period}</strong></span>
               </p>
             </div>
           </div>
 
           {/* Subscription Switcher (Multi-subscription or Admin/Staff) */}
           {subscriptions.length > 1 && (
-            <div className="bg-white/10 p-2 rounded-xl backdrop-blur-xs border border-white/15">
-              <label className="text-[10px] uppercase font-bold tracking-wider text-primary-200 block mb-1">
+            <div className="bg-white/15 p-2.5 rounded-xl backdrop-blur-xs border border-white/20 shadow-xs">
+              <label className="text-[10px] uppercase font-bold tracking-wider text-indigo-200 block mb-1">
                 Active Subscription:
               </label>
               <select
@@ -334,7 +363,7 @@ export function SubscriptionUsageTracking() {
                   setSelectedSubId(newId);
                   loadUsageData(newId);
                 }}
-                className="bg-primary-900 text-white text-xs rounded-lg px-2.5 py-1.5 border border-primary-700 focus:outline-hidden focus:ring-1 focus:ring-primary-400 cursor-pointer"
+                className="bg-indigo-950 text-white text-xs font-semibold rounded-lg px-2.5 py-1.5 border border-indigo-400/40 focus:outline-hidden focus:ring-1 focus:ring-primary-400 cursor-pointer shadow-xs"
               >
                 {subscriptions.map(s => (
                   <option key={s.id} value={s.id} className="bg-slate-900 text-white">
@@ -347,32 +376,33 @@ export function SubscriptionUsageTracking() {
         </div>
 
         {/* Billing Period Sub-bar */}
-        <div className="mt-5 pt-4 border-t border-white/10 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+        <div className="mt-5 pt-4 border-t border-white/15 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
           <div>
-            <p className="text-[10px] text-primary-300 uppercase tracking-wider font-semibold">Current Period</p>
+            <p className="text-[10px] text-indigo-300 uppercase tracking-wider font-semibold">Current Period</p>
             <p className="font-semibold text-white mt-0.5 flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-primary-400" />
-              <span>{period?.start} → {period?.end}</span>
+              <Calendar className="w-3.5 h-3.5 text-indigo-300" />
+              <span>{period?.start} &rarr; {period?.end}</span>
             </p>
           </div>
           <div>
-            <p className="text-[10px] text-primary-300 uppercase tracking-wider font-semibold">Next Renewal</p>
+            <p className="text-[10px] text-indigo-300 uppercase tracking-wider font-semibold">Next Renewal</p>
             <p className="font-semibold text-white mt-0.5 flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-emerald-400" />
+              <Clock className="w-3.5 h-3.5 text-emerald-300" />
               <span>{subscription?.next_billing_date || 'Continuous'}</span>
             </p>
           </div>
           <div>
-            <p className="text-[10px] text-primary-300 uppercase tracking-wider font-semibold">Included Entitlements</p>
-            <p className="font-semibold text-white mt-0.5">
-              {overview?.total_included_features} features
+            <p className="text-[10px] text-indigo-300 uppercase tracking-wider font-semibold">Included Entitlements</p>
+            <p className="font-semibold text-white mt-0.5 flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-indigo-300" />
+              <span>{overview?.total_included_features || 0} features</span>
             </p>
           </div>
           <div>
-            <p className="text-[10px] text-primary-300 uppercase tracking-wider font-semibold">Unread Alerts</p>
+            <p className="text-[10px] text-indigo-300 uppercase tracking-wider font-semibold">Unread Alerts</p>
             <p className="font-semibold text-amber-300 mt-0.5 flex items-center gap-1.5">
-              <Bell className="w-3.5 h-3.5" />
-              <span>{overview?.unread_alerts_count} new</span>
+              <Bell className="w-3.5 h-3.5 text-amber-300" />
+              <span>{overview?.unread_alerts_count || 0} new</span>
             </p>
           </div>
         </div>
@@ -443,7 +473,7 @@ export function SubscriptionUsageTracking() {
       )}
 
       {/* 4. Tab Navigation */}
-      <div className="border-b border-slate-200 flex items-center gap-2 overflow-x-auto">
+      <div className="border-b border-slate-200 flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
         <button
           onClick={() => setActiveTab('overview')}
           className={`px-4 py-2.5 text-xs font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 ${

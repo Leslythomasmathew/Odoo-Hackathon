@@ -335,8 +335,8 @@ export function Sidebar() {
 
             {isAdmin && (
               <NavLink to="/communication-settings" className={navClass}>
-                <Mail className="w-4 h-4 text-primary-600" />
-                <span>Email Gateway</span>
+                <Zap className="w-4 h-4 text-[#3395ff]" />
+                <span>Gateways (Email & Pay)</span>
               </NavLink>
             )}
 

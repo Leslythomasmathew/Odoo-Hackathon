@@ -91,7 +91,7 @@ router.get('/subscriptions', authenticate, (req, res) => {
       params.push(cust.id);
     }
 
-    query += ' ORDER BY (s.status = "active") DESC, s.id DESC';
+    query += " ORDER BY (s.status = 'active') DESC, s.id DESC";
     const subscriptions = db.prepare(query).all(...params);
     res.json({ subscriptions });
   } catch (err) {

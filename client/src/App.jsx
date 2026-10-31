@@ -90,6 +90,7 @@ function ProtectedLayout() {
             <Route path="/taxes" element={<Taxes />} />
             <Route path="/staff" element={<StaffManagement />} />
             <Route path="/communication-settings" element={<CommunicationSettings />} />
+            <Route path="/settings/communication" element={<CommunicationSettings />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/system" element={<SystemBenchmark />} />
             <Route path="/support-tickets" element={<SupportTickets />} />
