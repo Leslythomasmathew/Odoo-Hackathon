@@ -11,7 +11,15 @@ export function seedData(isStressTest = false) {
   const customer2Hash = bcrypt.hashSync('CustomerRetail2026!', salt);
   const customer3Hash = bcrypt.hashSync('CustomerBakery2026!', salt);
 
-  // Clear existing for a clean, deterministic seed
+  // Clear existing if fresh seed
+  db.exec('DELETE FROM usage_charges');
+  db.exec('DELETE FROM usage_alerts');
+  db.exec('DELETE FROM usage_events');
+  db.exec('DELETE FROM subscription_usage');
+  db.exec('DELETE FROM usage_periods');
+  db.exec('DELETE FROM plan_features');
+  db.exec('DELETE FROM feature_catalog');
+
   db.exec('DELETE FROM activity_logs');
   db.exec('DELETE FROM payments');
   db.exec('DELETE FROM invoice_lines');
@@ -441,6 +449,161 @@ export function seedData(isStressTest = false) {
   insertLog.run('payment_recorded', 'Payment Received ($2,975.00)', 'Recorded $2,975.00 via Credit Card for INV-2026-0001', Number(inv1.lastInsertRowid), 'invoice', 'Sarah Jenkins');
   insertLog.run('payment_recorded', 'Partial Payment Received ($1,000.00)', 'Recorded wire payment of $1,000.00 for INV-2026-0002', Number(inv2.lastInsertRowid), 'invoice', 'Marcus Vance');
   insertLog.run('chase_sent', 'Overdue Payment Chased', 'Sent overdue notification to sarah@retailflow.io for invoice INV-2026-0002 ($2,751.00 balance)', Number(inv2.lastInsertRowid), 'invoice', 'Marcus Vance');
+
+  // 11. Feature Catalog across sectors (General, Healthcare, Education, E-commerce, Transportation)
+  const insertFeature = db.prepare(`
+    INSERT INTO feature_catalog (key, name, description, sector, feature_type, unit, is_active)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  const featInvoices = insertFeature.run('invoices_generation', 'Invoice Generation', 'Monthly automated & manual invoice generation engine', 'general', 'quantity', 'invoices', 1);
+  const featStaff = insertFeature.run('staff_accounts', 'Team Seats', 'Active staff and administrative user seats', 'general', 'quantity', 'seats', 1);
+  const featApi = insertFeature.run('api_requests', 'API Requests', 'High-throughput REST API and Webhook requests', 'general', 'consumption', 'requests', 1);
+  const featStorage = insertFeature.run('cloud_storage', 'Cloud Storage', 'Secure multi-region encrypted document storage', 'general', 'consumption', 'GB', 1);
+  const featReports = insertFeature.run('report_exports', 'Report Exports', 'Financial intelligence PDF & CSV exports', 'general', 'quantity', 'reports', 1);
+  const featPriority = insertFeature.run('priority_support', 'Priority Support SLA', '24/7 dedicated support team with 15-minute response SLA', 'general', 'access', 'access', 1);
+  const featBranding = insertFeature.run('custom_branding', 'Custom Branding', 'White-labeled customer portal and custom domain styling', 'general', 'access', 'access', 1);
+  const featErp = insertFeature.run('erp_sync', 'ERP Real-time Sync', 'Bi-directional synchronization events with Odoo ERP', 'general', 'consumption', 'syncs', 1);
+  const featAi = insertFeature.run('ai_report_generation', 'AI Report Generation', 'Autonomous neural network financial forecasting and insights', 'general', 'consumption', 'credits', 1);
+
+  // Cross-sector features to prove dynamic multi-industry adaptability
+  // Healthcare
+  insertFeature.run('patient_records', 'Patient Electronic Records', 'Digital medical charts and HIPAA-compliant history', 'healthcare', 'quantity', 'records', 1);
+  insertFeature.run('appointment_scheduling', 'Appointment Slots', 'Telehealth and in-clinic consultation bookings', 'healthcare', 'quantity', 'bookings', 1);
+  // Education
+  insertFeature.run('student_accounts', 'Student Enrollment', 'Active student directory and course access profiles', 'education', 'quantity', 'students', 1);
+  insertFeature.run('online_exams', 'Proctored Examinations', 'Automated grading and online exam sessions', 'education', 'quantity', 'exams', 1);
+  // E-commerce
+  insertFeature.run('product_listings', 'Product Catalog Items', 'Active SKU listings, variations, and catalog sync', 'ecommerce', 'quantity', 'products', 1);
+  insertFeature.run('order_processing', 'Order Processing Engine', 'Checkout routing and multi-channel fulfillment orders', 'ecommerce', 'quantity', 'orders', 1);
+  // Transportation
+  insertFeature.run('vehicle_tracking', 'Fleet GPS Telematics', 'Live GPS asset tracking and telemetry updates', 'transportation', 'quantity', 'vehicles', 1);
+  insertFeature.run('trip_management', 'Trip Dispatches', 'Automated route dispatching and driver manifests', 'transportation', 'quantity', 'trips', 1);
+
+  // 12. Plan Features Mapping
+  const insertPlanFeature = db.prepare(`
+    INSERT INTO plan_features (plan_id, feature_id, allowance, is_unlimited, overage_allowed, overage_rate, reset_frequency, policy)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  // Starter Growth Monthly Plan
+  insertPlanFeature.run(Number(planStarter.lastInsertRowid), Number(featInvoices.lastInsertRowid), 50, 0, 1, 1.50, 'billing_period', 'overage');
+  insertPlanFeature.run(Number(planStarter.lastInsertRowid), Number(featStaff.lastInsertRowid), 3, 0, 0, 0.0, 'billing_period', 'hard_limit');
+  insertPlanFeature.run(Number(planStarter.lastInsertRowid), Number(featApi.lastInsertRowid), 5000, 0, 1, 0.01, 'billing_period', 'overage');
+  insertPlanFeature.run(Number(planStarter.lastInsertRowid), Number(featStorage.lastInsertRowid), 10, 0, 1, 4.00, 'billing_period', 'overage');
+  insertPlanFeature.run(Number(planStarter.lastInsertRowid), Number(featReports.lastInsertRowid), 10, 0, 0, 0.0, 'billing_period', 'soft_alert');
+  insertPlanFeature.run(Number(planStarter.lastInsertRowid), Number(featBranding.lastInsertRowid), 0, 0, 0, 0.0, 'never', 'hard_limit');
+
+  // Professional Yearly Plan (includes exclusive erp_sync and priority_support)
+  insertPlanFeature.run(Number(planProYearly.lastInsertRowid), Number(featInvoices.lastInsertRowid), 500, 0, 1, 1.00, 'billing_period', 'overage');
+  insertPlanFeature.run(Number(planProYearly.lastInsertRowid), Number(featStaff.lastInsertRowid), 15, 0, 0, 0.0, 'billing_period', 'hard_limit');
+  insertPlanFeature.run(Number(planProYearly.lastInsertRowid), Number(featApi.lastInsertRowid), 50000, 0, 1, 0.005, 'billing_period', 'overage');
+  insertPlanFeature.run(Number(planProYearly.lastInsertRowid), Number(featStorage.lastInsertRowid), 100, 0, 1, 2.50, 'billing_period', 'overage');
+  insertPlanFeature.run(Number(planProYearly.lastInsertRowid), Number(featReports.lastInsertRowid), 100, 0, 0, 0.0, 'billing_period', 'soft_alert');
+  insertPlanFeature.run(Number(planProYearly.lastInsertRowid), Number(featPriority.lastInsertRowid), null, 1, 0, 0.0, 'never', 'soft_alert');
+  insertPlanFeature.run(Number(planProYearly.lastInsertRowid), Number(featBranding.lastInsertRowid), null, 1, 0, 0.0, 'never', 'soft_alert');
+  insertPlanFeature.run(Number(planProYearly.lastInsertRowid), Number(featErp.lastInsertRowid), 2500, 0, 1, 0.05, 'billing_period', 'overage');
+
+  // Enterprise Scale Yearly Plan (includes exclusive ai_report_generation, unlimited invoices and reports)
+  insertPlanFeature.run(Number(planEnterprise.lastInsertRowid), Number(featInvoices.lastInsertRowid), null, 1, 0, 0.0, 'billing_period', 'soft_alert');
+  insertPlanFeature.run(Number(planEnterprise.lastInsertRowid), Number(featStaff.lastInsertRowid), 100, 0, 0, 0.0, 'billing_period', 'hard_limit');
+  insertPlanFeature.run(Number(planEnterprise.lastInsertRowid), Number(featApi.lastInsertRowid), 250000, 0, 1, 0.002, 'billing_period', 'overage');
+  insertPlanFeature.run(Number(planEnterprise.lastInsertRowid), Number(featStorage.lastInsertRowid), 500, 0, 1, 1.50, 'billing_period', 'overage');
+  insertPlanFeature.run(Number(planEnterprise.lastInsertRowid), Number(featReports.lastInsertRowid), null, 1, 0, 0.0, 'billing_period', 'soft_alert');
+  insertPlanFeature.run(Number(planEnterprise.lastInsertRowid), Number(featPriority.lastInsertRowid), null, 1, 0, 0.0, 'never', 'soft_alert');
+  insertPlanFeature.run(Number(planEnterprise.lastInsertRowid), Number(featBranding.lastInsertRowid), null, 1, 0, 0.0, 'never', 'soft_alert');
+  insertPlanFeature.run(Number(planEnterprise.lastInsertRowid), Number(featErp.lastInsertRowid), 10000, 0, 1, 0.02, 'billing_period', 'overage');
+  insertPlanFeature.run(Number(planEnterprise.lastInsertRowid), Number(featAi.lastInsertRowid), 500, 0, 1, 0.50, 'billing_period', 'overage');
+
+  // Agile Sprint Weekly Plan
+  insertPlanFeature.run(Number(planSprintWeekly.lastInsertRowid), Number(featInvoices.lastInsertRowid), 15, 0, 0, 0.0, 'billing_period', 'soft_alert');
+  insertPlanFeature.run(Number(planSprintWeekly.lastInsertRowid), Number(featApi.lastInsertRowid), 1000, 0, 0, 0.0, 'billing_period', 'soft_alert');
+
+  // Sandbox Test Daily Plan
+  insertPlanFeature.run(Number(planSandboxDaily.lastInsertRowid), Number(featInvoices.lastInsertRowid), 5, 0, 0, 0.0, 'billing_period', 'hard_limit');
+  insertPlanFeature.run(Number(planSandboxDaily.lastInsertRowid), Number(featApi.lastInsertRowid), 200, 0, 0, 0.0, 'billing_period', 'hard_limit');
+
+  // 13. Seed Usage Periods and Actual Usage for Subscriptions
+  const insertUsagePeriod = db.prepare(`
+    INSERT INTO usage_periods (subscription_id, period_start, period_end, status)
+    VALUES (?, ?, ?, ?)
+  `);
+
+  const insertUsage = db.prepare(`
+    INSERT INTO subscription_usage (subscription_id, feature_id, period_id, usage_value, last_recorded_at)
+    VALUES (?, ?, ?, ?, datetime('now'))
+  `);
+
+  const insertUsageEvent = db.prepare(`
+    INSERT INTO usage_events (idempotency_key, subscription_id, feature_id, period_id, quantity, operation_type, source_ref, metadata, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  const insertUsageAlert = db.prepare(`
+    INSERT INTO usage_alerts (subscription_id, feature_id, period_id, threshold_percent, message, severity, is_read, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+  `);
+
+  const insertUsageCharge = db.prepare(`
+    INSERT INTO usage_charges (subscription_id, feature_id, period_id, units_over, rate, amount, status, invoice_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  // Sub 1 (Acme Corp on Starter Growth Monthly: current period 2026-10-01 to 2026-11-01)
+  const periodSub1 = insertUsagePeriod.run(Number(sub1.lastInsertRowid), '2026-10-01', '2026-11-01', 'active');
+  const period1Id = Number(periodSub1.lastInsertRowid);
+
+  // Sub 1 Usage:
+  // Invoices: 42 / 50 (84%)
+  insertUsage.run(Number(sub1.lastInsertRowid), Number(featInvoices.lastInsertRowid), period1Id, 42);
+  insertUsageAlert.run(Number(sub1.lastInsertRowid), Number(featInvoices.lastInsertRowid), period1Id, 50, 'Invoices reached 50% allowance (25 / 50).', 'info', 1);
+  insertUsageAlert.run(Number(sub1.lastInsertRowid), Number(featInvoices.lastInsertRowid), period1Id, 80, 'Invoices reached 80% allowance (40 / 50). Consider reviewing your upcoming billing needs.', 'warning', 0);
+
+  // Staff: 2 / 3 (66.7%)
+  insertUsage.run(Number(sub1.lastInsertRowid), Number(featStaff.lastInsertRowid), period1Id, 2);
+  insertUsageAlert.run(Number(sub1.lastInsertRowid), Number(featStaff.lastInsertRowid), period1Id, 50, 'Team Seats reached 50% capacity (2 / 3).', 'info', 1);
+
+  // API Requests: 4,650 / 5,000 (93%)
+  insertUsage.run(Number(sub1.lastInsertRowid), Number(featApi.lastInsertRowid), period1Id, 4650);
+  insertUsageAlert.run(Number(sub1.lastInsertRowid), Number(featApi.lastInsertRowid), period1Id, 50, 'API Requests crossed 50% monthly quota (2,500 / 5,000).', 'info', 1);
+  insertUsageAlert.run(Number(sub1.lastInsertRowid), Number(featApi.lastInsertRowid), period1Id, 80, 'API Requests reached 80% quota (4,000 / 5,000).', 'warning', 1);
+  insertUsageAlert.run(Number(sub1.lastInsertRowid), Number(featApi.lastInsertRowid), period1Id, 90, 'CRITICAL: API Requests at 93% (4,650 / 5,000). Approaching plan ceiling.', 'critical', 0);
+
+  // Cloud Storage: 12 / 10 GB (120% -> 2 GB overage!)
+  insertUsage.run(Number(sub1.lastInsertRowid), Number(featStorage.lastInsertRowid), period1Id, 12);
+  insertUsageAlert.run(Number(sub1.lastInsertRowid), Number(featStorage.lastInsertRowid), period1Id, 80, 'Storage usage at 8.0 GB of 10 GB.', 'warning', 1);
+  insertUsageAlert.run(Number(sub1.lastInsertRowid), Number(featStorage.lastInsertRowid), period1Id, 90, 'Storage usage reached 9.0 GB of 10 GB.', 'critical', 1);
+  insertUsageAlert.run(Number(sub1.lastInsertRowid), Number(featStorage.lastInsertRowid), period1Id, 100, 'Storage limit exceeded by 2.0 GB. Overage billing policy active ($4.00/GB).', 'danger', 0);
+  // Overage charge: 2 GB * $4.00 = $8.00
+  insertUsageCharge.run(Number(sub1.lastInsertRowid), Number(featStorage.lastInsertRowid), period1Id, 2.0, 4.00, 8.00, 'pending', null);
+
+  // Report Exports: 5 / 10 (50%)
+  insertUsage.run(Number(sub1.lastInsertRowid), Number(featReports.lastInsertRowid), period1Id, 5);
+
+  // Seed sample usage events for Sub 1 across recent days to power analytics charts
+  for (let i = 1; i <= 14; i++) {
+    const day = String(i).padStart(2, '0');
+    insertUsageEvent.run(`sub1-api-${i}`, Number(sub1.lastInsertRowid), Number(featApi.lastInsertRowid), period1Id, 300 + (i * 15), 'api_call', `/api/v1/sync-${i}`, JSON.stringify({ ip: '192.168.1.1' }), `2026-10-${day} 14:00:00`);
+    if (i % 2 === 0) {
+      insertUsageEvent.run(`sub1-inv-${i}`, Number(sub1.lastInsertRowid), Number(featInvoices.lastInsertRowid), period1Id, 3, 'invoice_generated', `INV-BATCH-${i}`, null, `2026-10-${day} 10:30:00`);
+    }
+  }
+
+  // Sub 2 (RetailFlow on Professional Yearly: period 2026-08-15 to 2027-08-15)
+  const periodSub2 = insertUsagePeriod.run(Number(sub2.lastInsertRowid), '2026-08-15', '2027-08-15', 'active');
+  const period2Id = Number(periodSub2.lastInsertRowid);
+
+  insertUsage.run(Number(sub2.lastInsertRowid), Number(featInvoices.lastInsertRowid), period2Id, 180);
+  insertUsage.run(Number(sub2.lastInsertRowid), Number(featStaff.lastInsertRowid), period2Id, 8);
+  insertUsage.run(Number(sub2.lastInsertRowid), Number(featApi.lastInsertRowid), period2Id, 38000);
+  insertUsage.run(Number(sub2.lastInsertRowid), Number(featStorage.lastInsertRowid), period2Id, 65);
+  insertUsage.run(Number(sub2.lastInsertRowid), Number(featReports.lastInsertRowid), period2Id, 42);
+  insertUsage.run(Number(sub2.lastInsertRowid), Number(featPriority.lastInsertRowid), period2Id, 1);
+  insertUsage.run(Number(sub2.lastInsertRowid), Number(featBranding.lastInsertRowid), period2Id, 1);
+  insertUsage.run(Number(sub2.lastInsertRowid), Number(featErp.lastInsertRowid), period2Id, 1950);
+
+  insertUsageAlert.run(Number(sub2.lastInsertRowid), Number(featApi.lastInsertRowid), period2Id, 50, 'API consumption crossed 50% (25,000 / 50,000).', 'info', 1);
+  insertUsageAlert.run(Number(sub2.lastInsertRowid), Number(featErp.lastInsertRowid), period2Id, 50, 'ERP Real-time Sync crossed 50% of annual allowance.', 'info', 1);
 
   console.log('Default Brightloop seed data initialized successfully.');
 }

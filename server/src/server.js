@@ -23,6 +23,7 @@ import paymentRoutes from './routes/payments.js';
 import reportRoutes from './routes/reports.js';
 import systemRoutes from './routes/system.js';
 import notificationRoutes from './routes/notifications.js';
+import usageRoutes from './routes/usage.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -53,6 +54,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/usage', usageRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

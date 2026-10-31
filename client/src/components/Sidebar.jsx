@@ -16,7 +16,8 @@ import {
   BarChart3,
   Cpu,
   UserCircle,
-  Mail
+  Mail,
+  Gauge
 } from 'lucide-react';
 
 export function Sidebar() {
@@ -51,6 +52,10 @@ export function Sidebar() {
               <NavLink to="/portal" className={navClass} end>
                 <UserCircle className="w-4 h-4 text-primary-600" />
                 <span>My Portal Overview</span>
+              </NavLink>
+              <NavLink to="/usage" className={navClass}>
+                <Gauge className="w-4 h-4 text-indigo-600" />
+                <span>Subscription Usage Tracking</span>
               </NavLink>
               <NavLink to="/subscriptions" className={navClass}>
                 <Repeat className="w-4 h-4 text-slate-500" />
@@ -122,6 +127,10 @@ export function Sidebar() {
             <NavLink to="/subscriptions" className={navClass}>
               <Repeat className="w-4 h-4 text-indigo-500" />
               <span>Subscriptions</span>
+            </NavLink>
+            <NavLink to="/usage" className={navClass}>
+              <Gauge className="w-4 h-4 text-cyan-600" />
+              <span>Subscription Usage Tracking</span>
             </NavLink>
             <NavLink to="/invoices" className={navClass}>
               <FileText className="w-4 h-4 text-amber-500" />

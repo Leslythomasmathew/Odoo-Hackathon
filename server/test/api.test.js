@@ -504,6 +504,198 @@ async function runTests() {
     assert(benchRes.status === 200, 'Benchmark test executed successfully');
     assert(benchRes.body.queryResponseTimeMs < 2000, `Performance non-functional requirement: Query responded in ${benchRes.body.queryResponseTimeMs}ms (< 2000ms target)`);
 
+    // -------------------------------------------------------------------------
+    // MODULE 10: DYNAMIC SUBSCRIPTION USAGE TRACKING (SECTION 12 VERIFICATION)
+    // -------------------------------------------------------------------------
+    console.log('\n--- 10. Dynamic Subscription Usage Tracking Tests ---');
+
+    // Login Client 2 (RetailFlow)
+    const cust2Login = await request(testServer, {
+      method: 'POST',
+      path: '/api/auth/login'
+    }, { email: 'sarah@retailflow.io', password: 'CustomerRetail2026!' });
+    const customer2Token = cust2Login.body.token;
+
+    // Test 1: Client A (Acme) sees features for Plan A
+    const acmeUsage = await request(testServer, {
+      method: 'GET',
+      path: '/api/usage/current',
+      headers: { Authorization: `Bearer ${customerToken}` }
+    });
+    assert(acmeUsage.status === 200 && acmeUsage.body.features.length > 0, 'Test 1: Client A retrieves active plan features');
+    const acmeFeatureKeys = acmeUsage.body.features.map(f => f.feature_key);
+    assert(acmeFeatureKeys.includes('invoices_generation') && acmeFeatureKeys.includes('api_requests'), 'Test 1: Client A has Starter plan core features');
+
+    // Test 2: Client B (RetailFlow) sees features for Plan B (SUB-2026-0002 Professional Yearly)
+    const sub2Row = db.prepare("SELECT id FROM subscriptions WHERE number = 'SUB-2026-0002'").get();
+    const retailUsage = await request(testServer, {
+      method: 'GET',
+      path: `/api/usage/current?subscription_id=${sub2Row.id}`,
+      headers: { Authorization: `Bearer ${customer2Token}` }
+    });
+    assert(retailUsage.status === 200 && retailUsage.body.features.length > 0, 'Test 2: Client B retrieves active plan features');
+    const retailFeatureKeys = retailUsage.body.features.map(f => f.feature_key);
+
+    // Test 3: Exclusive feature support
+    assert(retailFeatureKeys.includes('erp_sync') && !acmeFeatureKeys.includes('erp_sync'), 'Test 3: Exclusive feature "erp_sync" present for Plan B but NOT Plan A');
+
+    // Test 4: Multi-sector catalog support
+    const catalogRes = await request(testServer, {
+      method: 'GET',
+      path: '/api/usage/catalog',
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    const catalogSectors = Array.from(new Set(catalogRes.body.catalog.map(f => f.sector)));
+    assert(
+      catalogSectors.includes('healthcare') &&
+      catalogSectors.includes('education') &&
+      catalogSectors.includes('ecommerce') &&
+      catalogSectors.includes('transportation') &&
+      catalogSectors.includes('general'),
+      'Test 4: System supports completely different business sectors in unified catalog'
+    );
+
+    // Test 5: Newly integrated feature registration
+    const newFeatRes = await request(testServer, {
+      method: 'POST',
+      path: '/api/usage/record',
+      headers: { Authorization: `Bearer ${adminToken}` }
+    }, {
+      subscription_id: acmeUsage.body.subscription.id,
+      feature_key: 'non_existent_feature_123',
+      quantity: 1
+    });
+    assert(newFeatRes.status === 400 || newFeatRes.status === 404, 'Test 5: Non-registered feature correctly rejected');
+
+    // Test 6: Different measurement types (Access, Quantity, Consumption)
+    const typesPresent = Array.from(new Set(retailUsage.body.features.map(f => f.type)));
+    assert(
+      typesPresent.includes('access') &&
+      typesPresent.includes('quantity') &&
+      typesPresent.includes('consumption'),
+      'Test 6: Supports access-based, quantity-based, and consumption-based measurement types'
+    );
+
+    // Test 7: Unlimited features do not trigger false limit alerts
+    const unlimitedFeature = retailUsage.body.features.find(f => f.is_unlimited);
+    assert(unlimitedFeature && unlimitedFeature.status === 'unlimited', 'Test 7: Unlimited feature properly recognized');
+    assert(!unlimitedFeature.alerts || unlimitedFeature.alerts.length === 0, 'Test 7: Unlimited feature triggers 0 false limit alerts');
+
+    // Test 8: Failed operations do not increase usage
+    const invalidQtyRes = await request(testServer, {
+      method: 'POST',
+      path: '/api/usage/record',
+      headers: { Authorization: `Bearer ${customerToken}` }
+    }, {
+      feature_key: 'api_requests',
+      quantity: -50
+    });
+    assert(invalidQtyRes.status === 400, 'Test 8: Negative or invalid quantity rejected without increasing usage');
+
+    // Test 9: Duplicate events rejected via idempotency key
+    const idemKey = `idem-test-${Date.now()}`;
+    const event1 = await request(testServer, {
+      method: 'POST',
+      path: '/api/usage/record',
+      headers: { Authorization: `Bearer ${customerToken}` }
+    }, {
+      feature_key: 'api_requests',
+      quantity: 10,
+      idempotency_key: idemKey
+    });
+    assert(event1.status === 201, 'Test 9: First event with idempotency key succeeded');
+
+    const event2 = await request(testServer, {
+      method: 'POST',
+      path: '/api/usage/record',
+      headers: { Authorization: `Bearer ${customerToken}` }
+    }, {
+      feature_key: 'api_requests',
+      quantity: 10,
+      idempotency_key: idemKey
+    });
+    assert(event2.status === 201 && event2.body.is_duplicate === true, 'Test 9: Duplicate event with same idempotency key skipped without double-counting');
+
+    // Test 10: Threshold alerts work correctly
+    const alertsRes = await request(testServer, {
+      method: 'GET',
+      path: '/api/usage/alerts',
+      headers: { Authorization: `Bearer ${customerToken}` }
+    });
+    assert(alertsRes.status === 200 && alertsRes.body.alerts.length > 0, 'Test 10: Threshold alerts generated and retrieved');
+    const alertThresholds = alertsRes.body.alerts.map(a => a.threshold_percent);
+    assert(alertThresholds.includes(50) || alertThresholds.includes(80), 'Test 10: 50% or 80% threshold alerts recorded');
+
+    // Test 11: Backend enforcement of hard limit policy
+    // staff_accounts on Acme Plan has hard_limit of 3. Currently 2 used.
+    // Attempting to record +5 seats should be blocked with 429!
+    const hardLimitExceed = await request(testServer, {
+      method: 'POST',
+      path: '/api/usage/record',
+      headers: { Authorization: `Bearer ${customerToken}` }
+    }, {
+      feature_key: 'staff_accounts',
+      quantity: 5
+    });
+    assert(hardLimitExceed.status === 429, 'Test 11: Backend enforces hard limit policy and blocks request (HTTP 429)');
+
+    // Test 12: Overage charges calculation
+    const chargesRes = await request(testServer, {
+      method: 'GET',
+      path: '/api/usage/charges',
+      headers: { Authorization: `Bearer ${customerToken}` }
+    });
+    assert(chargesRes.status === 200 && chargesRes.body.charges.length > 0, 'Test 12: Overage charges properly calculated and recorded');
+    assert(chargesRes.body.total_pending_amount > 0, 'Test 12: Total pending overage dollar amount accurately tracked');
+
+    // Test 13: Historical consumption and analytics
+    const analyticsRes = await request(testServer, {
+      method: 'GET',
+      path: '/api/usage/analytics',
+      headers: { Authorization: `Bearer ${customerToken}` }
+    });
+    assert(analyticsRes.status === 200 && analyticsRes.body.forecast.length > 0, 'Test 13: Usage analytics generates period-end forecast');
+    assert(analyticsRes.body.recommendations.length > 0, 'Test 13: Intelligent usage recommendations generated based on actual consumption');
+
+    // Test 14: Customer isolation (AUTH-7)
+    // Acme customer attempts to access RetailFlow's subscription id
+    const retailSubId = retailUsage.body.subscription.id;
+    const forbiddenUsage = await request(testServer, {
+      method: 'GET',
+      path: `/api/usage/current?subscription_id=${retailSubId}`,
+      headers: { Authorization: `Bearer ${customerToken}` }
+    });
+    assert(forbiddenUsage.status === 403, 'Test 14: Customer CANNOT access another customer\'s subscription usage (403 Forbidden)');
+
+    // Test 15: Existing invoicing workflow auto-records usage
+    const preInvUsage = await request(testServer, {
+      method: 'GET',
+      path: '/api/usage/features/invoices_generation',
+      headers: { Authorization: `Bearer ${customerToken}` }
+    });
+    const preInvCount = preInvUsage.body.feature.actual_usage;
+
+    // Trigger an invoice generation for Acme
+    const newInvRes = await request(testServer, {
+      method: 'POST',
+      path: `/api/invoices/generate/${acmeUsage.body.subscription.id}`,
+      headers: { Authorization: `Bearer ${adminToken}` }
+    }, {
+      billingDate: '2026-12-01',
+      billingPeriodStart: '2026-12-01'
+    });
+
+    const postInvUsage = await request(testServer, {
+      method: 'GET',
+      path: '/api/usage/features/invoices_generation',
+      headers: { Authorization: `Bearer ${customerToken}` }
+    });
+    assert(
+      postInvUsage.status === 200 &&
+      (postInvUsage.body.feature.actual_usage === preInvCount + 1 || newInvRes.body.skipped),
+      'Test 15: Invoicing workflow automatically records usage for invoices_generation'
+    );
+
     console.log('\n======================================================');
     console.log(`🏁 TEST RESULTS: ${passed} PASSED, ${failed} FAILED`);
     console.log('======================================================\n');

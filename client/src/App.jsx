@@ -26,6 +26,7 @@ import { Taxes } from './pages/Taxes';
 import { StaffManagement } from './pages/StaffManagement';
 import { Reports } from './pages/Reports';
 import { CustomerPortal } from './pages/CustomerPortal';
+import { SubscriptionUsageTracking } from './pages/SubscriptionUsageTracking';
 import { SystemBenchmark } from './pages/SystemBenchmark';
 import { CommunicationSettings } from './pages/CommunicationSettings';
 
@@ -62,6 +63,7 @@ function ProtectedLayout() {
           <Routes>
             <Route path="/" element={<Dashboard onOpenBillingRun={() => setBillingModalOpen(true)} />} />
             <Route path="/portal" element={<CustomerPortal />} />
+            <Route path="/usage" element={<SubscriptionUsageTracking />} />
             <Route path="/subscriptions" element={<Subscriptions />} />
             <Route path="/subscriptions/:id" element={<SubscriptionDetail />} />
             <Route path="/invoices" element={<Invoices onOpenBillingRun={() => setBillingModalOpen(true)} />} />
