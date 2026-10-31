@@ -1,8 +1,21 @@
 import bcrypt from 'bcryptjs';
 import { db, initDatabase } from './database.js';
 
-export function seedData(isStressTest = false) {
+export function seedData(force = false) {
   initDatabase();
+
+  // If not forcing a re-seed and data already exists, preserve all user data!
+  if (!force) {
+    try {
+      const existingUsers = db.prepare('SELECT COUNT(*) as count FROM users').get();
+      if (existingUsers && existingUsers.count > 0) {
+        console.log('Database already populated. Preserving all existing user data and subscriptions.');
+        return;
+      }
+    } catch {
+      // Table might not exist yet, continue with seed
+    }
+  }
 
   const salt = bcrypt.genSaltSync(10);
   const adminHash = bcrypt.hashSync('BrightloopAdmin2026!', salt);
@@ -11,7 +24,7 @@ export function seedData(isStressTest = false) {
   const customer2Hash = bcrypt.hashSync('CustomerRetail2026!', salt);
   const customer3Hash = bcrypt.hashSync('CustomerBakery2026!', salt);
 
-  // Clear existing if fresh seed
+  // Clear existing if fresh seed requested
   db.exec('DELETE FROM usage_charges');
   db.exec('DELETE FROM usage_alerts');
   db.exec('DELETE FROM usage_events');
