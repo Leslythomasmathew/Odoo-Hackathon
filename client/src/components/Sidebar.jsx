@@ -17,7 +17,8 @@ import {
   Cpu,
   UserCircle,
   Mail,
-  Gauge
+  Gauge,
+  Zap
 } from 'lucide-react';
 
 export function Sidebar() {

@@ -50,7 +50,7 @@ export function RazorpayModal({ invoice, isOpen, onClose, onSuccess }) {
     try {
       setLoadingOrder(true);
       setError('');
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('brightloop_token') || localStorage.getItem('token');
       const res = await fetch('/api/payments/razorpay/create-order', {
         method: 'POST',
         headers: {
@@ -93,7 +93,7 @@ export function RazorpayModal({ invoice, isOpen, onClose, onSuccess }) {
       const fakePaymentId = `pay_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
       const fakeSignature = `sig_${Math.random().toString(36).substring(2, 16)}`;
 
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('brightloop_token') || localStorage.getItem('token');
       const res = await fetch('/api/payments/razorpay/verify', {
         method: 'POST',
         headers: {
