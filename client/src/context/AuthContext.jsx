@@ -112,6 +112,11 @@ export function AuthProvider({ children }) {
     return data;
   };
 
+  const roleLevel = user?.role === 'admin' ? 3 : user?.role === 'staff' ? 2 : user?.role === 'customer' ? 1 : 0;
+  const isSupreme = user?.role === 'admin';
+  const isStaff = user?.role === 'staff';
+  const isCustomer = user?.role === 'customer';
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -122,9 +127,18 @@ export function AuthProvider({ children }) {
       logout,
       switchUser,
       authFetch,
-      isAdmin: user?.role === 'admin',
-      isStaff: user?.role === 'staff',
-      isCustomer: user?.role === 'customer'
+      roleLevel,
+      isSupreme,
+      isAdmin: isSupreme,
+      isStaff,
+      isCustomer,
+      canManageStaff: isSupreme,       // AUTH-6: Only Admin Supreme can provision staff
+      canManageDiscounts: isSupreme,   // DISC-1: Only Admin Supreme can create discount rules
+      canManageTaxes: isSupreme,       // INV-3: Admin sets tax rules
+      canManageCatalog: isSupreme,     // PROD-1..3: Admin manages catalog & variants
+      canManagePlans: isSupreme,       // PLAN-1..4: Admin configures plans
+      canRunSystem: isSupreme,         // Admin runs benchmarks / reseeds
+      canOperate: isSupreme || isStaff // Staff + Admin handle day-to-day operations
     }}>
       {children}
     </AuthContext.Provider>

@@ -79,10 +79,10 @@ app.use((err, req, res, next) => {
   });
 });
 
-const isMainModule = process.argv[1] && process.argv[1].endsWith('server.js');
-if (isMainModule) {
-  app.listen(PORT, () => {
-    console.log(`Brightloop Subscription System API running on http://localhost:${PORT}`);
+const isTestMode = process.env.NODE_ENV === 'test' || process.argv.some(arg => arg.includes('test'));
+if (!isTestMode) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Brightloop Subscription System API running on http://localhost:${PORT} and http://127.0.0.1:${PORT}`);
   });
 }
 

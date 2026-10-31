@@ -33,6 +33,17 @@ export function Sidebar() {
     return (
       <aside className="no-print w-64 bg-white border-r border-slate-200/80 min-h-[calc(100vh-4rem)] p-4 flex flex-col justify-between">
         <div className="space-y-6">
+          {/* Hierarchy Banner */}
+          <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-base">👤</span>
+              <div>
+                <p className="font-bold text-emerald-900 leading-tight">Tier 3: User Portal</p>
+                <p className="text-[10px] text-emerald-700 font-semibold uppercase">Self-Serve Data Scoping</p>
+              </div>
+            </div>
+          </div>
+
           <div>
             <p className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Customer Self-Service</p>
             <nav className="space-y-1">
@@ -70,6 +81,35 @@ export function Sidebar() {
   return (
     <aside className="no-print w-64 bg-white border-r border-slate-200/80 min-h-[calc(100vh-4rem)] p-4 flex flex-col justify-between">
       <div className="space-y-6">
+        {/* Hierarchy Banner */}
+        {isAdmin ? (
+          <div className="p-3 bg-gradient-to-r from-rose-50 to-purple-50 rounded-xl border border-rose-200 text-xs shadow-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">👑</span>
+              <div>
+                <p className="font-black text-rose-950 leading-tight">Tier 1: Admin Supreme</p>
+                <p className="text-[10px] text-rose-700 font-bold uppercase tracking-wider">Absolute System Authority</p>
+              </div>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1.5 leading-snug">
+              Full control of staff (AUTH-6), catalog, variants (+560), discounts & billing runs.
+            </p>
+          </div>
+        ) : (
+          <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-200 text-xs shadow-xs">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🛡️</span>
+              <div>
+                <p className="font-black text-indigo-950 leading-tight">Tier 2: Internal Staff</p>
+                <p className="text-[10px] text-indigo-700 font-bold uppercase tracking-wider">Operational Authority</p>
+              </div>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1.5 leading-snug">
+              Day-to-day sales, quotations, invoices & collections. Rules managed by Admin Supreme.
+            </p>
+          </div>
+        )}
+
         {/* Core Operations */}
         <div>
           <p className="px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Operations</p>

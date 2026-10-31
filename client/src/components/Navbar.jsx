@@ -8,9 +8,9 @@ export function Navbar({ onOpenBillingRun }) {
   const [switching, setSwitching] = useState(false);
 
   const roles = [
-    { label: 'Admin (Sarah Jenkins)', email: 'admin@brightloop.com', role: 'admin', desc: 'Full system control, products, taxes, staff' },
-    { label: 'Staff (Marcus Vance)', email: 'staff@brightloop.com', role: 'staff', desc: 'Day-to-day operations, billing, payments' },
-    { label: 'Customer (Alex Rivera)', email: 'customer@acmecorp.com', role: 'customer', desc: 'Self-service portal (Acme Corp)' }
+    { tier: 'Tier 1 (Supreme)', label: '👑 Admin Supreme (Sarah Jenkins)', email: 'admin@brightloop.com', role: 'admin', desc: 'Absolute authority: full system control, product catalog, discounts, taxes, staff provisioning' },
+    { tier: 'Tier 2 (Operational)', label: '🛡️ Internal Staff (Marcus Vance)', email: 'staff@brightloop.com', role: 'staff', desc: 'Operations: day-to-day subscriptions, quotations, invoices, payments, overdue chasing' },
+    { tier: 'Tier 3 (Self-Serve)', label: '👤 User / Customer (Alex Rivera)', email: 'customer@acmecorp.com', role: 'customer', desc: 'Client portal: scoped strictly to own subscriptions, invoices, and payments (Acme Corp)' }
   ];
 
   const handleSwitch = async (email) => {
@@ -27,9 +27,9 @@ export function Navbar({ onOpenBillingRun }) {
   };
 
   const getRoleBadge = (role) => {
-    if (role === 'admin') return { label: 'Admin', bg: 'bg-rose-100 text-rose-800 border-rose-200' };
-    if (role === 'staff') return { label: 'Staff', bg: 'bg-indigo-100 text-indigo-800 border-indigo-200' };
-    return { label: 'Customer Portal', bg: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
+    if (role === 'admin') return { label: '👑 Admin (Supreme)', bg: 'bg-rose-100 text-rose-800 border-rose-300 shadow-xs' };
+    if (role === 'staff') return { label: '🛡️ Staff (Operations)', bg: 'bg-indigo-100 text-indigo-800 border-indigo-200' };
+    return { label: '👤 User (Customer Portal)', bg: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
   };
 
   const badge = getRoleBadge(user?.role);
@@ -87,23 +87,29 @@ export function Navbar({ onOpenBillingRun }) {
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setDropdownOpen(false)} />
                   <div className="absolute right-0 mt-2 w-72 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-1 duration-150">
-                    <div className="px-3 py-2 border-b border-slate-100">
-                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Quick Demo Impersonator</p>
-                      <p className="text-xs text-slate-500 mt-0.5">Test system views as different roles:</p>
+                    <div className="px-3 py-2 border-b border-slate-100 bg-slate-50/70 rounded-t-xl">
+                      <p className="text-[11px] font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                        <span>Role Hierarchy</span>
+                        <span className="text-[10px] text-primary-600 bg-primary-50 px-1.5 py-0.5 rounded font-mono font-bold">Admin Supreme → Staff → User</span>
+                      </p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">Switch role to inspect permissions:</p>
                     </div>
                     {roles.map(r => (
                       <button
                         key={r.email}
                         disabled={switching}
                         onClick={() => handleSwitch(r.email)}
-                        className={`w-full text-left px-3 py-2 text-xs hover:bg-slate-50 transition-colors flex items-start justify-between ${user?.email === r.email ? 'bg-primary-50/50 text-primary-700 font-semibold' : 'text-slate-700'}`}
+                        className={`w-full text-left px-3 py-2.5 text-xs hover:bg-slate-50 transition-colors flex items-start justify-between border-b border-slate-50 last:border-b-0 ${user?.email === r.email ? 'bg-primary-50/50 text-primary-700 font-semibold' : 'text-slate-700'}`}
                       >
                         <div>
-                          <p className="font-bold">{r.label}</p>
-                          <p className="text-[11px] text-slate-400 mt-0.5">{r.desc}</p>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{r.tier}:</span>
+                            <p className="font-bold">{r.label}</p>
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">{r.desc}</p>
                         </div>
                         {user?.email === r.email && (
-                          <Check className="w-4 h-4 text-primary-600 mt-0.5 shrink-0" />
+                          <Check className="w-4 h-4 text-primary-600 mt-1 shrink-0" />
                         )}
                       </button>
                     ))}
