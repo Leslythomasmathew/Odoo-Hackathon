@@ -5,7 +5,8 @@ import { PrintableInvoice } from '../components/PrintableInvoice';
 import { RecordPaymentModal } from '../components/RecordPaymentModal';
 import { ChaseReminderModal } from '../components/ChaseReminderModal';
 import { NotifyCustomerModal } from '../components/NotifyCustomerModal';
-import { CheckCircle2, XCircle, Send, CreditCard, AlertTriangle, Mail } from 'lucide-react';
+import { RazorpayModal } from '../components/RazorpayModal';
+import { CheckCircle2, XCircle, Send, CreditCard, AlertTriangle, Mail, Zap } from 'lucide-react';
 
 export function InvoiceDetail() {
   const { id } = useParams();
@@ -16,6 +17,7 @@ export function InvoiceDetail() {
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [razorpayModalOpen, setRazorpayModalOpen] = useState(false);
   const [chaseModalOpen, setChaseModalOpen] = useState(false);
   const [notifyModalOpen, setNotifyModalOpen] = useState(false);
 
@@ -110,13 +112,26 @@ export function InvoiceDetail() {
         </div>
 
         {invoice.status !== 'paid' && invoice.status !== 'cancelled' && (
-          <button
-            onClick={() => setPaymentModalOpen(true)}
-            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs transition-colors"
-          >
-            <CreditCard className="w-4 h-4" />
-            <span>Record Payment</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setRazorpayModalOpen(true)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-[#0c2340] hover:bg-[#14325a] text-white rounded-lg text-xs font-bold shadow-xs transition-colors border border-[#3395ff]/30"
+              title="Pay invoice online using Razorpay (UPI, Credit/Debit Card, NetBanking)"
+            >
+              <Zap className="w-4 h-4 text-[#3395ff]" />
+              <span>Pay Online (Razorpay)</span>
+            </button>
+
+            {user?.role !== 'customer' && (
+              <button
+                onClick={() => setPaymentModalOpen(true)}
+                className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold shadow-xs transition-colors"
+              >
+                <CreditCard className="w-4 h-4" />
+                <span>Record Offline Payment</span>
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -133,6 +148,16 @@ export function InvoiceDetail() {
           onClose={() => setPaymentModalOpen(false)}
           invoice={invoice}
           onPaymentRecorded={loadInvoice}
+        />
+      )}
+
+      {/* Razorpay Online Payment Modal */}
+      {razorpayModalOpen && (
+        <RazorpayModal
+          isOpen={razorpayModalOpen}
+          onClose={() => setRazorpayModalOpen(false)}
+          invoice={invoice}
+          onSuccess={loadInvoice}
         />
       )}
 

@@ -5,6 +5,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { RecordPaymentModal } from '../components/RecordPaymentModal';
 import { ViewNotificationModal } from '../components/ViewNotificationModal';
 import { CustomerSubscribeModal } from '../components/CustomerSubscribeModal';
+import { RazorpayModal } from '../components/RazorpayModal';
 import {
   UserCircle,
   Repeat,
@@ -22,7 +23,8 @@ import {
   Bell,
   Eye,
   Plus,
-  Sparkles
+  Sparkles,
+  Zap
 } from 'lucide-react';
 
 export function CustomerPortal() {
@@ -303,9 +305,11 @@ export function CustomerPortal() {
                           {inv.outstanding > 0 && inv.status !== 'cancelled' && (
                             <button
                               onClick={() => setPaymentInvoice(inv)}
-                              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-[11px] font-bold"
+                              className="px-2.5 py-1 bg-[#0c2340] hover:bg-[#14325a] text-white rounded text-[11px] font-bold flex items-center gap-1 shadow-xs border border-[#3395ff]/30"
+                              title="Pay online with Razorpay (UPI, Card, NetBanking)"
                             >
-                              Pay Online
+                              <Zap className="w-3 h-3 text-[#3395ff]" />
+                              <span>Pay (Razorpay)</span>
                             </button>
                           )}
                           <Link
@@ -392,12 +396,13 @@ export function CustomerPortal() {
       )}
 
       {/* Payment Modal */}
+      {/* Razorpay Online Payment Modal */}
       {paymentInvoice && (
-        <RecordPaymentModal
+        <RazorpayModal
           isOpen={!!paymentInvoice}
           onClose={() => setPaymentInvoice(null)}
           invoice={paymentInvoice}
-          onPaymentRecorded={loadData}
+          onSuccess={loadData}
         />
       )}
 

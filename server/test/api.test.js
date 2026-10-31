@@ -693,8 +693,62 @@ async function runTests() {
     assert(
       postInvUsage.status === 200 &&
       (postInvUsage.body.feature.actual_usage === preInvCount + 1 || newInvRes.body.skipped),
-      'Test 15: Invoicing workflow automatically records usage for invoices_generation'
+      'USG-15: System auto-tracked invoice creation feature usage'
     );
+
+    console.log('\n--- 11. Real-Time Razorpay Payment Gateway Tests ---');
+    // Test 1: Retrieve Razorpay config
+    const rzpConfigRes = await request(testServer, {
+      method: 'GET',
+      path: '/api/payments/razorpay/config',
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    assert(rzpConfigRes.status === 200 && rzpConfigRes.body.config.currency === 'INR', 'PAY-RZP-1: Public Razorpay configuration retrieved');
+
+    // Test 2: Create Razorpay Order for an open invoice
+    const invListRes = await request(testServer, {
+      method: 'GET',
+      path: '/api/invoices',
+      headers: { Authorization: `Bearer ${adminToken}` }
+    });
+    const unpaidInv = invListRes.body.invoices.find(i => i.status !== 'paid' && (i.total - (i.paid_amount || 0)) >= 50) || invListRes.body.invoices[0];
+    const rzpTargetInvoiceId = unpaidInv.id;
+
+    const rzpOrderRes = await request(testServer, {
+      method: 'POST',
+      path: '/api/payments/razorpay/create-order',
+      headers: { Authorization: `Bearer ${adminToken}` }
+    }, {
+      invoice_id: rzpTargetInvoiceId,
+      amount: 50
+    });
+    assert(rzpOrderRes.status === 200 && rzpOrderRes.body.orderId && rzpOrderRes.body.amountInPaise === 5000, 'PAY-RZP-2: Razorpay order generated with amount converted to paise');
+
+    // Test 3: Verify and settle payment
+    const rzpVerifyRes = await request(testServer, {
+      method: 'POST',
+      path: '/api/payments/razorpay/verify',
+      headers: { Authorization: `Bearer ${adminToken}` }
+    }, {
+      razorpay_order_id: rzpOrderRes.body.orderId,
+      razorpay_payment_id: 'pay_test_' + Date.now(),
+      razorpay_signature: 'sig_test_valid',
+      invoice_id: rzpTargetInvoiceId,
+      amount: 50,
+      payment_method: 'UPI'
+    });
+    assert(rzpVerifyRes.status === 200 && rzpVerifyRes.body.success, 'PAY-RZP-3: Razorpay payment verified and settled against invoice');
+
+    // Test 4: Configure Razorpay Settings as Admin
+    const rzpSettingsRes = await request(testServer, {
+      method: 'POST',
+      path: '/api/payments/razorpay/settings',
+      headers: { Authorization: `Bearer ${adminToken}` }
+    }, {
+      keyId: 'rzp_test_NewKey123',
+      keySecret: 'SecretKey456'
+    });
+    assert(rzpSettingsRes.status === 200 && rzpSettingsRes.body.config.isConfigured, 'PAY-RZP-4: Admin can configure custom Razorpay API credentials');
 
     console.log('\n======================================================');
     console.log(`🏁 TEST RESULTS: ${passed} PASSED, ${failed} FAILED`);

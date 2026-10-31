@@ -6,6 +6,12 @@ import {
   buildInvoiceReminderTemplate,
   dispatchNotification
 } from '../services/notificationService.js';
+import {
+  getRazorpayConfig,
+  saveRazorpayConfig,
+  createRazorpayOrder,
+  verifyAndSettlePayment
+} from '../services/razorpayService.js';
 
 const router = express.Router();
 
@@ -224,6 +230,74 @@ router.post('/chase/:invoiceId', authenticate, requireRole(['admin', 'staff']), 
     message: `Payment chase reminder dispatched to ${inv.customer_email} via Email ($${outstanding.toFixed(2)} due).`,
     chasedAt: new Date().toISOString()
   });
+});
+
+/**
+ * Razorpay Payment Gateway Routes
+ */
+
+// 1. Get Razorpay Config
+router.get('/razorpay/config', authenticate, (req, res) => {
+  const config = getRazorpayConfig();
+  res.json({ config });
+});
+
+// 2. Create Razorpay Order for an Invoice
+router.post('/razorpay/create-order', authenticate, async (req, res) => {
+  try {
+    const { invoice_id, amount } = req.body;
+    if (!invoice_id) return res.status(400).json({ error: 'Invoice ID is required' });
+
+    let customer = null;
+    const inv = db.prepare('SELECT customer_id FROM invoices WHERE id = ?').get(invoice_id);
+    if (inv) {
+      customer = db.prepare('SELECT name, email, phone FROM customers WHERE id = ?').get(inv.customer_id);
+    }
+
+    const orderData = await createRazorpayOrder({ invoiceId: invoice_id, amount, customer });
+    res.json(orderData);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// 3. Verify Razorpay Payment Signature & Settle Invoice
+router.post('/razorpay/verify', authenticate, async (req, res) => {
+  try {
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      invoice_id,
+      amount,
+      payment_method
+    } = req.body;
+
+    if (!invoice_id || !amount) {
+      return res.status(400).json({ error: 'Invoice ID and amount are required.' });
+    }
+
+    const result = await verifyAndSettlePayment({
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      invoiceId: invoice_id,
+      amount,
+      paymentMethod: payment_method || 'UPI',
+      userName: req.user.name
+    });
+
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// 4. Update Razorpay Gateway Credentials
+router.post('/razorpay/settings', authenticate, requireRole(['admin']), (req, res) => {
+  const { keyId, keySecret } = req.body;
+  const config = saveRazorpayConfig({ keyId, keySecret });
+  res.json({ message: 'Razorpay configuration saved successfully!', config });
 });
 
 export default router;
