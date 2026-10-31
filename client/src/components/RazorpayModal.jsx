@@ -12,7 +12,10 @@ import {
   ShieldCheck,
   Smartphone,
   RefreshCw,
-  Mail
+  Mail,
+  Zap,
+  Key,
+  ExternalLink
 } from 'lucide-react';
 
 export function RazorpayModal({ invoice, isOpen, onClose, onSuccess }) {
@@ -23,6 +26,12 @@ export function RazorpayModal({ invoice, isOpen, onClose, onSuccess }) {
   const [processStep, setProcessStep] = useState('');
   const [error, setError] = useState('');
   const [successResult, setSuccessResult] = useState(null);
+
+  // Official Razorpay API Key inputs
+  const [showKeyConfig, setShowKeyConfig] = useState(false);
+  const [inlineKeyId, setInlineKeyId] = useState('');
+  const [inlineKeySecret, setInlineKeySecret] = useState('');
+  const [savingKeys, setSavingKeys] = useState(false);
 
   // Form states
   const [upiId, setUpiId] = useState('');
@@ -43,6 +52,7 @@ export function RazorpayModal({ invoice, isOpen, onClose, onSuccess }) {
       setError('');
       setSuccessResult(null);
       setProcessing(false);
+      setShowKeyConfig(false);
     }
   }, [isOpen, invoice]);
 
@@ -69,10 +79,136 @@ export function RazorpayModal({ invoice, isOpen, onClose, onSuccess }) {
       }
 
       setOrderData(data);
+      return data;
     } catch (err) {
       setError(err.message || 'Could not initiate Razorpay order.');
+      return null;
     } finally {
       setLoadingOrder(false);
+    }
+  };
+
+  /**
+   * Launch the official Razorpay Checkout SDK Popup
+   */
+  const handleOpenOfficialRazorpay = (data = orderData) => {
+    if (!data) return;
+
+    if (!window.Razorpay) {
+      setError('Official Razorpay checkout.js script not loaded yet. Please verify your internet connection.');
+      return;
+    }
+
+    try {
+      const options = {
+        key: data.keyId,
+        amount: data.amountInPaise,
+        currency: 'INR',
+        name: 'Brightloop Billing',
+        description: `Payment for Invoice #${invoice?.number}`,
+        order_id: data.orderId,
+        prefill: {
+          name: data.customerName || invoice?.customer_name || 'Customer',
+          email: data.customerEmail || invoice?.customer_email || '',
+          contact: data.customerPhone || invoice?.customer_phone || ''
+        },
+        notes: {
+          invoice_id: String(invoice?.id)
+        },
+        theme: {
+          color: '#3395ff'
+        },
+        handler: async function (response) {
+          setProcessing(true);
+          setProcessStep('Verifying official Razorpay cryptographic signature...');
+          try {
+            const token = localStorage.getItem('brightloop_token') || localStorage.getItem('token');
+            const verifyRes = await fetch('/api/payments/razorpay/verify', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                invoice_id: invoice.id,
+                amount: data.amount,
+                payment_method: 'Official Razorpay'
+              })
+            });
+
+            const verifyData = await verifyRes.json();
+            if (!verifyRes.ok) throw new Error(verifyData.error || 'Signature verification failed');
+
+            setSuccessResult(verifyData);
+            if (onSuccess) onSuccess(verifyData);
+          } catch (err) {
+            setError(err.message || 'Payment settlement failed.');
+          } finally {
+            setProcessing(false);
+          }
+        },
+        modal: {
+          ondismiss: function () {
+            console.log('Official Razorpay checkout closed by user');
+          }
+        }
+      };
+
+      const rzpInstance = new window.Razorpay(options);
+      rzpInstance.on('payment.failed', function (resp) {
+        setError(resp.error?.description || 'Official Razorpay payment failed.');
+      });
+      rzpInstance.open();
+    } catch (err) {
+      setError(err.message || 'Failed to trigger official Razorpay popup.');
+    }
+  };
+
+  /**
+   * Save Real Razorpay API Keys and trigger official popup
+   */
+  const handleSaveKeysAndLaunch = async (e) => {
+    e.preventDefault();
+    if (!inlineKeyId.trim() || !inlineKeySecret.trim()) {
+      setError('Please provide both Razorpay Key ID and Key Secret.');
+      return;
+    }
+
+    try {
+      setSavingKeys(true);
+      setError('');
+      const token = localStorage.getItem('brightloop_token') || localStorage.getItem('token');
+      const settingsRes = await fetch('/api/payments/razorpay/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          keyId: inlineKeyId.trim(),
+          keySecret: inlineKeySecret.trim()
+        })
+      });
+
+      const settingsData = await settingsRes.json();
+      if (!settingsRes.ok) {
+        throw new Error(settingsData.error || 'Failed to save Razorpay credentials');
+      }
+
+      // Re-create order with real Razorpay SDK
+      const newOrder = await initiateOrder();
+      if (newOrder) {
+        setShowKeyConfig(false);
+        // Automatically launch official popup
+        handleOpenOfficialRazorpay(newOrder);
+      }
+    } catch (err) {
+      setError(err.message || 'Could not connect real Razorpay keys.');
+    } finally {
+      setSavingKeys(false);
     }
   };
 
@@ -238,6 +374,110 @@ export function RazorpayModal({ invoice, isOpen, onClose, onSuccess }) {
           ) : (
             /* Payment Methods Selection */
             <>
+              {/* Official Razorpay Popup / Key Setup Banner */}
+              {orderData?.mode === 'live_test' ? (
+                <div className="p-4 bg-gradient-to-r from-[#0c2340] to-[#14325a] text-white rounded-2xl shadow-md border border-[#3395ff]/40 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-[#3395ff] fill-[#3395ff]" />
+                      <span className="font-extrabold text-xs">Official Razorpay Checkout Active</span>
+                    </div>
+                    <span className="text-[10px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded border border-emerald-400/30">
+                      LIVE TEST KEYS
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-200">
+                    Your official Razorpay credentials are connected. Click below to launch the authentic Razorpay checkout iframe:
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenOfficialRazorpay()}
+                    className="w-full py-2.5 px-4 bg-[#3395ff] hover:bg-[#2884eb] text-white font-extrabold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 text-xs"
+                  >
+                    <Lock className="w-4 h-4" />
+                    <span>Launch Official Razorpay Popup &rarr;</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="p-3.5 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/90 rounded-2xl text-slate-800 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-[#3395ff]" />
+                      <span className="font-extrabold text-xs text-[#0c2340]">Want the Original Razorpay Popup?</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowKeyConfig(!showKeyConfig)}
+                      className="text-[11px] font-bold text-[#3395ff] hover:underline flex items-center gap-1"
+                    >
+                      <Key className="w-3 h-3" />
+                      <span>{showKeyConfig ? 'Hide' : 'Connect Free Keys'}</span>
+                    </button>
+                  </div>
+
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    To pop up Razorpay's official checkout window, connect your free Razorpay Test Keys:
+                  </p>
+
+                  {showKeyConfig ? (
+                    <form onSubmit={handleSaveKeysAndLaunch} className="space-y-2 pt-1 border-t border-blue-200/60">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">Key ID</label>
+                        <input
+                          type="text"
+                          value={inlineKeyId}
+                          onChange={(e) => setInlineKeyId(e.target.value)}
+                          placeholder="rzp_test_xxxxxxxxxxxxxx"
+                          className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-[#3395ff] bg-white"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 uppercase mb-0.5">Key Secret</label>
+                        <input
+                          type="password"
+                          value={inlineKeySecret}
+                          onChange={(e) => setInlineKeySecret(e.target.value)}
+                          placeholder="Razorpay Key Secret"
+                          className="w-full px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-[#3395ff] bg-white"
+                          required
+                        />
+                      </div>
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-1">
+                        <a
+                          href="https://dashboard.razorpay.com/app/keys"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[10px] text-slate-500 hover:text-[#3395ff] font-bold flex items-center gap-1"
+                        >
+                          <span>Get Free Keys (Razorpay Dashboard)</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                        <button
+                          type="submit"
+                          disabled={savingKeys}
+                          className="w-full sm:w-auto px-3 py-1.5 bg-[#0c2340] hover:bg-[#14325a] text-white font-bold rounded-lg text-xs transition-colors flex items-center justify-center gap-1.5"
+                        >
+                          {savingKeys ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3 text-emerald-400" />}
+                          <span>Save & Launch Official Popup</span>
+                        </button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="flex items-center justify-between text-[11px] pt-1">
+                      <span className="text-slate-500">Zero-setup instant mode active</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowKeyConfig(true)}
+                        className="px-2.5 py-1 bg-white border border-blue-300 text-blue-700 font-bold rounded-lg hover:bg-blue-50 transition-colors shadow-2xs"
+                      >
+                        Enter Test Keys &rarr;
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Payment Tabs */}
               <div className="grid grid-cols-3 gap-1 p-1 bg-slate-100 rounded-xl font-bold">
                 <button
