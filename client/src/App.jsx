@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { BillingRunModal } from './components/BillingRunModal';
+import { ChatbotWidget } from './components/ChatbotWidget';
+import { CommandPalette } from './components/CommandPalette';
 
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
@@ -27,12 +29,20 @@ import { StaffManagement } from './pages/StaffManagement';
 import { Reports } from './pages/Reports';
 import { CustomerPortal } from './pages/CustomerPortal';
 import { SystemBenchmark } from './pages/SystemBenchmark';
+import { SupportTickets } from './pages/SupportTickets';
 
 // Protected App Shell Layout
 function ProtectedLayout() {
   const { user, loading, isCustomer } = useAuth();
   const [billingModalOpen, setBillingModalOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const location = useLocation();
+
+  useEffect(() => {
+    const handleOpenPalette = () => setCommandPaletteOpen(true);
+    window.addEventListener('open-command-palette', handleOpenPalette);
+    return () => window.removeEventListener('open-command-palette', handleOpenPalette);
+  }, []);
 
   if (loading) {
     return (
@@ -53,7 +63,10 @@ function ProtectedLayout() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-['Plus_Jakarta_Sans',sans-serif]">
-      <Navbar onOpenBillingRun={() => setBillingModalOpen(true)} />
+      <Navbar
+        onOpenBillingRun={() => setBillingModalOpen(true)}
+        onOpenCommandPalette={() => setCommandPaletteOpen(true)}
+      />
 
       <div className="flex-1 flex max-w-7xl w-full mx-auto">
         <Sidebar />
@@ -75,10 +88,21 @@ function ProtectedLayout() {
             <Route path="/staff" element={<StaffManagement />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/system" element={<SystemBenchmark />} />
+            <Route path="/support-tickets" element={<SupportTickets />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
       </div>
+
+      {/* 24/7 AI Customer Care & Site Enquiries Chatbot - strictly for Customers, excluded from Administrator and Staff dashboards */}
+      {isCustomer && <ChatbotWidget onOpenBillingRun={() => setBillingModalOpen(true)} />}
+
+      {/* Global Interactive Spotlight Command Palette */}
+      <CommandPalette
+        isOpen={commandPaletteOpen}
+        onClose={() => setCommandPaletteOpen(false)}
+        onOpenBillingRun={() => setBillingModalOpen(true)}
+      />
 
       {/* Global Billing Runner Modal */}
       <BillingRunModal

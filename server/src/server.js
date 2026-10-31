@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 import { initDatabase } from './db/database.js';
 import { seedData } from './db/seed.js';
+import { seedSupportData } from './db/seedSupport.js';
 
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
@@ -22,6 +23,7 @@ import taxRoutes from './routes/taxes.js';
 import paymentRoutes from './routes/payments.js';
 import reportRoutes from './routes/reports.js';
 import systemRoutes from './routes/system.js';
+import supportRoutes from './routes/support.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,6 +31,7 @@ const __dirname = path.dirname(__filename);
 // Initialize DB and ensure seed data exists
 initDatabase();
 seedData(false);
+seedSupportData();
 
 const app = express();
 const PORT = process.env.PORT || 5050;
@@ -51,6 +54,7 @@ app.use('/api/taxes', taxRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/system', systemRoutes);
+app.use('/api/support', supportRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

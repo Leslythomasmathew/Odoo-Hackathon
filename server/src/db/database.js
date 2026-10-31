@@ -222,6 +222,44 @@ export function initDatabase() {
       created_at TEXT DEFAULT (datetime('now'))
     );
 
+    -- Support Tickets table
+    CREATE TABLE IF NOT EXISTS support_tickets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ticket_number TEXT UNIQUE NOT NULL,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      customer_id INTEGER REFERENCES customers(id),
+      customer_name TEXT,
+      customer_email TEXT,
+      subject TEXT NOT NULL,
+      category TEXT NOT NULL CHECK(category IN ('billing', 'subscription', 'technical', 'enquiry', 'account', 'other')) DEFAULT 'enquiry',
+      priority TEXT NOT NULL CHECK(priority IN ('low', 'normal', 'high', 'urgent')) DEFAULT 'normal',
+      status TEXT NOT NULL CHECK(status IN ('open', 'in_progress', 'resolved', 'closed')) DEFAULT 'open',
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    -- Support Messages table
+    CREATE TABLE IF NOT EXISTS support_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ticket_id INTEGER REFERENCES support_tickets(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id),
+      sender_type TEXT NOT NULL CHECK(sender_type IN ('customer', 'bot', 'agent')),
+      sender_name TEXT,
+      message TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    -- Support Knowledge Base / FAQ table
+    CREATE TABLE IF NOT EXISTS support_faqs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      category TEXT NOT NULL,
+      question TEXT NOT NULL,
+      answer TEXT NOT NULL,
+      tags TEXT,
+      helpful_count INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
     -- Performance Indexes for sub-second queries with 10,000+ records
     CREATE INDEX IF NOT EXISTS idx_subs_status ON subscriptions(status);
     CREATE INDEX IF NOT EXISTS idx_subs_customer ON subscriptions(customer_id);
@@ -232,5 +270,8 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_invoices_due_date ON invoices(due_date);
     CREATE INDEX IF NOT EXISTS idx_payments_invoice ON payments(invoice_id);
     CREATE INDEX IF NOT EXISTS idx_payments_date ON payments(payment_date);
+    CREATE INDEX IF NOT EXISTS idx_tickets_user ON support_tickets(user_id);
+    CREATE INDEX IF NOT EXISTS idx_tickets_status ON support_tickets(status);
+    CREATE INDEX IF NOT EXISTS idx_tickets_customer ON support_tickets(customer_id);
   `);
 }

@@ -328,6 +328,40 @@ router.put('/:id', authenticate, requireRole(['admin', 'staff']), (req, res) => 
   }
 });
 
+// Customer self-service: update line quantity
+router.patch('/:id/quantity', authenticate, (req, res) => {
+  const { line_id, quantity } = req.body;
+  const sub = db.prepare('SELECT * FROM subscriptions WHERE id = ?').get(req.params.id);
+  if (!sub) return res.status(404).json({ error: 'Subscription not found.' });
+
+  if (req.user.role === 'customer') {
+    const cust = db.prepare('SELECT id FROM customers WHERE user_id = ?').get(req.user.id);
+    if (!cust || cust.id !== sub.customer_id) {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+  }
+
+  const plan = db.prepare('SELECT * FROM plans WHERE id = ?').get(sub.plan_id);
+  const minQty = plan ? plan.min_quantity : 1;
+  const qty = parseInt(quantity, 10);
+  if (isNaN(qty) || qty < minQty) {
+    return res.status(400).json({ error: `The minimum allowed quantity for this plan is ${minQty} license(s).` });
+  }
+
+  const line = db.prepare('SELECT * FROM subscription_lines WHERE id = ? AND subscription_id = ?').get(line_id, sub.id);
+  if (!line) return res.status(404).json({ error: 'Subscription line not found.' });
+
+  const newAmount = qty * line.unit_price;
+  db.prepare('UPDATE subscription_lines SET quantity = ?, amount = ? WHERE id = ?').run(qty, newAmount, line_id);
+
+  db.prepare(`
+    INSERT INTO activity_logs (type, title, details, target_id, target_type, created_by)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run('quantity_updated', 'Quantity Adjusted', `Adjusted line quantity to ${qty} ($${newAmount.toFixed(2)})`, sub.id, 'subscription', req.user.name);
+
+  res.json({ message: 'Quantity updated successfully.', quantity: qty, amount: newAmount });
+});
+
 // SUB-4 & Section 5.1: State Machine Transitions
 // Status flow: Draft -> Quotation -> Confirmed -> Active -> Closed
 // Plus Paused & Renewed

@@ -31,7 +31,7 @@ router.get('/preview', authenticate, requireRole(['admin', 'staff']), (req, res)
 });
 
 // INV-2: Trigger automated bulk billing run
-router.post('/run', authenticate, requireRole(['admin', 'staff']), (req, res) => {
+router.post('/run', authenticate, requireRole(['admin', 'staff', 'customer']), (req, res) => {
   const { simulationDate } = req.body;
   const startTime = Date.now();
 

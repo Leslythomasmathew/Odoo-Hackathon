@@ -25,7 +25,7 @@ export function authenticate(req, res, next) {
 
     // If user is a customer, fetch customer record ID
     if (user.role === 'customer') {
-      const customer = db.prepare('SELECT id, name, company FROM customers WHERE user_id = ?').get(user.id);
+      const customer = db.prepare('SELECT id, name, email, company FROM customers WHERE user_id = ?').get(user.id);
       req.customer = customer || null;
     }
 

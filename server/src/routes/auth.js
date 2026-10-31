@@ -16,6 +16,19 @@ function signToken(user) {
   );
 }
 
+// Check email availability for real-time validation
+router.get('/check-email', (req, res) => {
+  const email = (req.query.email || '').trim().toLowerCase();
+  if (!email || !email.includes('@')) {
+    return res.json({ available: false, message: '' });
+  }
+  const existing = db.prepare('SELECT id FROM users WHERE LOWER(email) = ?').get(email);
+  res.json({
+    available: !existing,
+    message: existing ? 'An account with this email already exists.' : 'Email is available!'
+  });
+});
+
 // AUTH-1, AUTH-2, AUTH-3: Customer signup
 router.post('/register', (req, res) => {
   const { email, password, name, company, phone, billing_address } = req.body;

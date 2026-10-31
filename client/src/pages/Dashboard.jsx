@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useNavigate, Link } from 'react-router-dom';
 import { StatsCard } from '../components/StatsCard';
 import { StatusBadge } from '../components/StatusBadge';
 import { ChaseReminderModal } from '../components/ChaseReminderModal';
@@ -14,15 +15,18 @@ import {
   Layers,
   ArrowUpRight,
   Send,
-  Calendar
+  Calendar,
+  Sparkles,
+  LifeBuoy
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 
 export function Dashboard({ onOpenBillingRun }) {
   const { authFetch, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedOverdue, setSelectedOverdue] = useState(null);
+  const [timeFilter, setTimeFilter] = useState('month');
 
   const loadData = async () => {
     try {
@@ -56,26 +60,72 @@ export function Dashboard({ onOpenBillingRun }) {
   return (
     <div className="space-y-6">
       {/* Top Banner & Quick Billing Action */}
-      <div className="bg-gradient-to-r from-primary-900 via-indigo-900 to-slate-900 text-white rounded-2xl p-6 sm:p-8 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-primary-500/20 text-primary-300 border border-primary-500/30">
+      <div className="relative bg-gradient-to-r from-slate-900 via-indigo-950 to-primary-950 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-indigo-900/40 overflow-hidden flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        {/* Floating Ambient Orbs */}
+        <div className="orb-ambient absolute -right-10 -top-10 w-72 h-72 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="orb-ambient absolute left-1/3 -bottom-10 w-64 h-64 bg-primary-500/15 rounded-full blur-2xl pointer-events-none [animation-delay:4s]" />
+
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold tracking-wider uppercase bg-primary-500/20 text-primary-300 border border-primary-500/30">
               Finance & Billing Operations
             </span>
-            <span className="text-xs text-slate-400">Month of October 2026</span>
+            <span className="text-xs text-slate-300 font-medium">Month of October 2026</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-2 text-white">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-2 text-white font-['Outfit']">
             Brightloop Revenue Hub
           </h1>
           <p className="text-xs sm:text-sm text-slate-300 mt-1 max-w-xl">
             Real-time tracking of active subscriptions, automated recurring billing, collections, and overdue chasing.
           </p>
+
+          {/* Interactive Time Range Pills */}
+          <div className="flex items-center gap-1.5 mt-4">
+            <button
+              onClick={() => setTimeFilter('month')}
+              className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all ${
+                timeFilter === 'month'
+                  ? 'bg-white text-slate-950 shadow-sm'
+                  : 'bg-white/10 text-slate-300 hover:text-white hover:bg-white/20'
+              }`}
+            >
+              This Month
+            </button>
+            <button
+              onClick={() => setTimeFilter('30d')}
+              className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all ${
+                timeFilter === '30d'
+                  ? 'bg-white text-slate-950 shadow-sm'
+                  : 'bg-white/10 text-slate-300 hover:text-white hover:bg-white/20'
+              }`}
+            >
+              Last 30 Days
+            </button>
+            <button
+              onClick={() => setTimeFilter('ytd')}
+              className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all ${
+                timeFilter === 'ytd'
+                  ? 'bg-white text-slate-950 shadow-sm'
+                  : 'bg-white/10 text-slate-300 hover:text-white hover:bg-white/20'
+              }`}
+            >
+              Year-to-Date (2026)
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="relative z-10 flex items-center gap-3 flex-wrap">
+          <button
+            onClick={() => navigate('/support-tickets')}
+            className="flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold border border-white/15 backdrop-blur-md shadow-xs transition-all hover:scale-102"
+          >
+            <LifeBuoy className="w-4 h-4 text-rose-300" />
+            <span>Care Desk</span>
+          </button>
+
           <button
             onClick={onOpenBillingRun}
-            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-500/20 transition-all hover:scale-102"
+            className="shimmer-active flex items-center gap-2 px-5 py-2.5 btn-emerald-glow text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-500/25 transition-all hover:scale-102 active:scale-98"
           >
             <Zap className="w-4 h-4 fill-white" />
             <span>Execute Billing Run</span>
@@ -83,7 +133,7 @@ export function Dashboard({ onOpenBillingRun }) {
         </div>
       </div>
 
-      {/* KPI Grid (REP-3 Core Questions) */}
+      {/* KPI Grid (REP-3 Core Questions - Interactive Click-to-Jump) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Q1: How many subscriptions are active? */}
         <StatsCard
@@ -92,6 +142,7 @@ export function Dashboard({ onOpenBillingRun }) {
           subtitle="Generating recurring revenue"
           icon={Repeat}
           color="emerald"
+          onClick={() => navigate('/subscriptions')}
         />
 
         {/* Q2: How much revenue came in? */}
@@ -101,6 +152,7 @@ export function Dashboard({ onOpenBillingRun }) {
           subtitle="Settled payments to date"
           icon={DollarSign}
           color="primary"
+          onClick={() => navigate('/payments')}
         />
 
         {/* Q3: How much is still owed? */}
@@ -110,6 +162,7 @@ export function Dashboard({ onOpenBillingRun }) {
           subtitle="Unsettled confirmed invoices"
           icon={Clock}
           color="amber"
+          onClick={() => navigate('/invoices')}
         />
 
         {/* Q4: Which invoices are overdue? */}
@@ -119,6 +172,7 @@ export function Dashboard({ onOpenBillingRun }) {
           subtitle={`$${kpis.overdueTotalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} at risk`}
           icon={AlertTriangle}
           color="rose"
+          onClick={() => navigate('/invoices')}
         />
       </div>
 
