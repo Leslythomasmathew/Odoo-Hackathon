@@ -37,30 +37,11 @@ export function ViewNotificationModal({ isOpen, onClose, notification }) {
               <Mail className="w-3.5 h-3.5 text-slate-400" />
               {notification.recipient_email}
             </span>
-            {notification.recipient_phone && (
-              <span className="flex items-center gap-1">
-                <Phone className="w-3.5 h-3.5 text-slate-400" />
-                {notification.recipient_phone}
-              </span>
-            )}
             <span className="flex items-center gap-1 text-emerald-600 font-medium">
               <CheckCircle2 className="w-3.5 h-3.5" /> Delivered
             </span>
           </div>
         </div>
-
-        {/* SMS Preview snippet if exists */}
-        {notification.sms_body && (
-          <div className="bg-indigo-50/60 border border-indigo-100 p-3 rounded-xl">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-indigo-900 mb-1">
-              <MessageSquare className="w-3.5 h-3.5 text-indigo-600" />
-              SMS Notification Dispatched:
-            </div>
-            <div className="text-xs text-indigo-950 font-mono bg-white p-2.5 rounded-lg border border-indigo-200 shadow-sm leading-relaxed">
-              {notification.sms_body}
-            </div>
-          </div>
-        )}
 
         {/* Rendered HTML Email Preview */}
         {notification.email_html && (

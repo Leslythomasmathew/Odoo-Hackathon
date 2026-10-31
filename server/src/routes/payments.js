@@ -136,7 +136,7 @@ router.post('/', authenticate, (req, res) => {
     const paymentId = Number(result.lastInsertRowid);
     const outstanding = Math.max(0, Number((inv.total - totalPaid).toFixed(2)));
 
-    // Automatically dispatch Payment Receipt notification (Email & SMS) to customer
+    // Automatically dispatch Payment Receipt notification (Email) to customer
     try {
       const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(inv.customer_id);
       if (customer) {
@@ -153,12 +153,11 @@ router.post('/', authenticate, (req, res) => {
           invoice_id: inv.id,
           payment_id: paymentId,
           type: 'payment_receipt',
-          channel: 'both',
+          channel: 'email',
           subject: receiptTemplate.subject,
           email_html: receiptTemplate.emailHtml,
-          sms_body: receiptTemplate.smsBody,
           recipient_email: customer.email,
-          recipient_phone: customer.phone || '+1 (555) 019-2834',
+          recipient_phone: customer.phone,
           created_by: req.user.name
         });
       }
@@ -167,7 +166,7 @@ router.post('/', authenticate, (req, res) => {
     }
 
     res.status(201).json({
-      message: `Payment of $${numAmount.toFixed(2)} recorded successfully.${isFullyPaid ? ' Invoice is now Paid!' : ''} Payment receipt sent via Email & SMS.`,
+      message: `Payment of $${numAmount.toFixed(2)} recorded successfully.${isFullyPaid ? ' Invoice is now Paid!' : ''} Payment receipt sent via Email.`,
       paymentId,
       invoiceStatus: newStatus,
       totalPaid,
@@ -213,17 +212,16 @@ router.post('/chase/:invoiceId', authenticate, requireRole(['admin', 'staff']), 
     customer_id: inv.customer_id,
     invoice_id: inv.id,
     type: isOverdue ? 'payment_reminder' : 'invoice_due',
-    channel: 'both',
+    channel: 'email',
     subject: reminder.subject,
     email_html: reminder.emailHtml,
-    sms_body: reminder.smsBody,
     recipient_email: inv.customer_email,
-    recipient_phone: inv.customer_phone || '+1 (555) 019-2834',
+    recipient_phone: inv.customer_phone,
     created_by: req.user.name
   });
 
   res.json({
-    message: `Payment chase reminder dispatched to ${inv.customer_email} via Email and SMS ($${outstanding.toFixed(2)} due).`,
+    message: `Payment chase reminder dispatched to ${inv.customer_email} via Email ($${outstanding.toFixed(2)} due).`,
     chasedAt: new Date().toISOString()
   });
 });

@@ -172,7 +172,7 @@ export function Payments() {
                         type="button"
                         onClick={() => setNotifyInvoice({ id: p.invoice_id, number: p.invoice_number })}
                         className="p-1.5 rounded hover:bg-indigo-50 text-indigo-600 hover:text-indigo-800"
-                        title="Send / Preview Payment Receipt (Email & SMS)"
+                        title="Send / Preview Payment Receipt (Email)"
                       >
                         <Mail className="w-3.5 h-3.5" />
                       </button>

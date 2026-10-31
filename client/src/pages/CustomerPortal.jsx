@@ -334,7 +334,7 @@ export function CustomerPortal() {
                 <span>Inbox • Payment Receipts & Due Alerts</span>
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                All official billing notices, payment receipts, and payment reminders sent via Email and SMS.
+                All official billing notices, payment receipts, and payment reminders sent via Email.
               </p>
             </div>
           </div>
@@ -362,9 +362,6 @@ export function CustomerPortal() {
                       }`}>
                         {notif.type.replace('_', ' ')}
                       </span>
-                      <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-600">
-                        {notif.channel.toUpperCase()}
-                      </span>
                       {notif.status !== 'read' && (
                         <span className="w-2 h-2 rounded-full bg-primary-600"></span>
                       )}
@@ -372,13 +369,8 @@ export function CustomerPortal() {
                     <div className="font-bold text-slate-900 text-sm">
                       {notif.subject}
                     </div>
-                    {notif.sms_body && (
-                      <p className="text-slate-500 text-[11px] line-clamp-1 font-mono">
-                        SMS: {notif.sms_body}
-                      </p>
-                    )}
                     <div className="text-[10px] text-slate-400">
-                      Dispatched on {notif.sent_at} • Recipient: {notif.recipient_email}
+                      Dispatched on {notif.sent_at} • Delivered to: {notif.recipient_email}
                     </div>
                   </div>
 

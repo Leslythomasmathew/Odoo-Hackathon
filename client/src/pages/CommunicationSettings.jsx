@@ -11,11 +11,7 @@ export function CommunicationSettings() {
     SMTP_SECURE: 'false',
     SMTP_USER: '',
     SMTP_PASS: '',
-    EMAIL_FROM: '',
-    TWILIO_ACCOUNT_SID: '',
-    TWILIO_AUTH_TOKEN: '',
-    TWILIO_FROM_PHONE: '',
-    FAST2SMS_API_KEY: ''
+    EMAIL_FROM: ''
   });
 
   const [loading, setLoading] = useState(true);
@@ -30,12 +26,6 @@ export function CommunicationSettings() {
   const [testEmailError, setTestEmailError] = useState('');
   const [testEmailPreviewUrl, setTestEmailPreviewUrl] = useState('');
   const [generatingTestAccount, setGeneratingTestAccount] = useState(false);
-
-  // Test SMS state
-  const [testSmsTo, setTestSmsTo] = useState('');
-  const [sendingTestSms, setSendingTestSms] = useState(false);
-  const [testSmsResult, setTestSmsResult] = useState('');
-  const [testSmsError, setTestSmsError] = useState('');
 
   const loadSettings = async () => {
     try {
@@ -160,30 +150,8 @@ export function CommunicationSettings() {
     }
   };
 
-  const handleSendTestSms = async () => {
-    if (!testSmsTo) {
-      setTestSmsError('Please enter a recipient phone number.');
-      return;
-    }
-    setSendingTestSms(true);
-    setTestSmsResult('');
-    setTestSmsError('');
-
-    try {
-      const res = await authFetch('/api/notifications/test-sms', {
-        method: 'POST',
-        body: JSON.stringify({ to: testSmsTo })
-      });
-      setTestSmsResult(res.message);
-    } catch (err) {
-      setTestSmsError(err.message || 'Test SMS delivery failed.');
-    } finally {
-      setSendingTestSms(false);
-    }
-  };
-
   if (loading) {
-    return <div className="p-12 text-center text-xs text-slate-400">Loading communication gateway configuration...</div>;
+    return <div className="p-12 text-center text-xs text-slate-400">Loading email gateway configuration...</div>;
   }
 
   return (
@@ -192,10 +160,10 @@ export function CommunicationSettings() {
       <div>
         <h1 className="text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
           <Mail className="w-6 h-6 text-primary-600" />
-          <span>Email & SMS Gateway Settings</span>
+          <span>Email Gateway Settings</span>
         </h1>
         <p className="text-xs text-slate-500 mt-1">
-          Configure real delivery credentials (SMTP, Gmail, Brevo, Twilio) so all subscription confirmations, invoice due alerts, and payment receipts arrive directly in actual user inboxes and mobiles.
+          Configure real delivery credentials (Gmail, SMTP, Brevo, SendGrid) so all subscription confirmations, invoice due alerts, and payment receipts arrive directly in actual user inboxes.
         </p>
       </div>
 
@@ -399,113 +367,6 @@ export function CommunicationSettings() {
             {testEmailError && (
               <div className="mt-3 p-2.5 bg-rose-100/70 border border-rose-300 text-rose-900 rounded-lg text-xs font-medium">
                 {testEmailError}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* SMS Gateway Card */}
-        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-5">
-          <div className="border-b border-slate-100 pb-4">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <MessageSquare className="w-4 h-4 text-emerald-600" />
-              <span>Live SMS / Mobile Gateway</span>
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Sends instant SMS text messages directly to user mobile phones for invoice reminders and receipts.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Option A: Twilio (Global SMS)</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-              <div className="space-y-1">
-                <label className="font-semibold text-slate-700">Twilio Account SID</label>
-                <input
-                  type="text"
-                  placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                  value={settings.TWILIO_ACCOUNT_SID}
-                  onChange={(e) => handleChange('TWILIO_ACCOUNT_SID', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 font-mono text-xs"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-semibold text-slate-700">Twilio Auth Token</label>
-                <input
-                  type="password"
-                  placeholder="Auth Token"
-                  value={settings.TWILIO_AUTH_TOKEN}
-                  onChange={(e) => handleChange('TWILIO_AUTH_TOKEN', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 font-mono text-xs"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="font-semibold text-slate-700">Twilio Phone Number (Sender)</label>
-                <input
-                  type="text"
-                  placeholder="+1234567890"
-                  value={settings.TWILIO_FROM_PHONE}
-                  onChange={(e) => handleChange('TWILIO_FROM_PHONE', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 text-xs"
-                />
-              </div>
-            </div>
-
-            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider pt-2 border-t border-slate-100">
-              Option B: Fast2SMS (Direct SMS to Indian +91 Mobiles)
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-              <div className="space-y-1">
-                <label className="font-semibold text-slate-700">Fast2SMS API Key</label>
-                <input
-                  type="password"
-                  placeholder="Enter Fast2SMS dev authorization key"
-                  value={settings.FAST2SMS_API_KEY}
-                  onChange={(e) => handleChange('FAST2SMS_API_KEY', e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary-500 font-mono text-xs"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Test Real SMS Box */}
-          <div className="pt-3 border-t border-slate-100 bg-slate-50 -mx-6 -mb-6 p-6 rounded-b-2xl">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div>
-                <h4 className="font-bold text-slate-800 text-xs">Verify Live SMS Delivery</h4>
-                <p className="text-[11px] text-slate-500">Send an immediate test SMS text message to your real mobile device.</p>
-              </div>
-
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <input
-                  type="text"
-                  placeholder="+919876543210 or 10-digit number"
-                  value={testSmsTo}
-                  onChange={(e) => setTestSmsTo(e.target.value)}
-                  className="text-xs px-3 py-2 border border-slate-300 rounded-lg w-full sm:w-64 bg-white focus:ring-2 focus:ring-primary-500 font-mono"
-                />
-                <button
-                  type="button"
-                  onClick={handleSendTestSms}
-                  disabled={sendingTestSms}
-                  className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50"
-                >
-                  {sendingTestSms ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                  <span>{sendingTestSms ? 'Sending...' : 'Send Test SMS'}</span>
-                </button>
-              </div>
-            </div>
-
-            {testSmsResult && (
-              <div className="mt-3 p-2.5 bg-emerald-100/70 border border-emerald-300 text-emerald-900 rounded-lg text-xs font-medium">
-                {testSmsResult}
-              </div>
-            )}
-            {testSmsError && (
-              <div className="mt-3 p-2.5 bg-rose-100/70 border border-rose-300 text-rose-900 rounded-lg text-xs font-medium">
-                {testSmsError}
               </div>
             )}
           </div>

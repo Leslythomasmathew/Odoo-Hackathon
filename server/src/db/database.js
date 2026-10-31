@@ -222,7 +222,7 @@ export function initDatabase() {
       created_at TEXT DEFAULT (datetime('now'))
     );
 
-    -- Customer Notifications / Email & Message Dispatches
+    -- Customer Notifications / Email Dispatches
     CREATE TABLE IF NOT EXISTS customer_notifications (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
@@ -230,7 +230,7 @@ export function initDatabase() {
       payment_id INTEGER REFERENCES payments(id) ON DELETE SET NULL,
       subscription_id INTEGER REFERENCES subscriptions(id) ON DELETE SET NULL,
       type TEXT NOT NULL CHECK(type IN ('invoice_due', 'payment_reminder', 'payment_receipt', 'subscription_renewal', 'general')),
-      channel TEXT NOT NULL CHECK(channel IN ('email', 'sms', 'both')) DEFAULT 'both',
+      channel TEXT NOT NULL CHECK(channel IN ('email', 'sms', 'both')) DEFAULT 'email',
       recipient_email TEXT,
       recipient_phone TEXT,
       subject TEXT NOT NULL,
@@ -242,7 +242,7 @@ export function initDatabase() {
       created_at TEXT DEFAULT (datetime('now'))
     );
 
-    -- System Configuration Settings (SMTP, SMS gateways, etc.)
+    -- System Configuration Settings (SMTP, Email gateway, etc.)
     CREATE TABLE IF NOT EXISTS system_settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL,

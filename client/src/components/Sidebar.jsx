@@ -180,7 +180,7 @@ export function Sidebar() {
             {isAdmin && (
               <NavLink to="/communication-settings" className={navClass}>
                 <Mail className="w-4 h-4 text-primary-600" />
-                <span>Email & SMS Gateway</span>
+                <span>Email Gateway</span>
               </NavLink>
             )}
 

@@ -81,7 +81,7 @@ export function Invoices({ onOpenBillingRun }) {
   };
 
   const handleBulkRemind = async () => {
-    if (!window.confirm('Send automated payment reminder notifications (Email & SMS) to all customers with due or overdue invoices?')) return;
+    if (!window.confirm('Send automated payment reminder notifications (Email) to all customers with due or overdue invoices?')) return;
     try {
       setBulkReminding(true);
       const res = await authFetch('/api/notifications/remind-all-due', { method: 'POST' });
@@ -114,7 +114,7 @@ export function Invoices({ onOpenBillingRun }) {
               onClick={handleBulkRemind}
               disabled={bulkReminding}
               className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold shadow-xs transition-colors disabled:opacity-50"
-              title="Automatically dispatch Email & SMS reminders to all customers with unpaid invoices"
+              title="Automatically dispatch Email reminders to all customers with unpaid invoices"
             >
               {bulkReminding ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Bell className="w-3.5 h-3.5" />}
               <span>{bulkReminding ? 'Dispatching...' : 'Bulk Remind Due'}</span>
@@ -340,7 +340,7 @@ export function Invoices({ onOpenBillingRun }) {
                           </button>
                         )}
 
-                        {/* Notify Customer (Email & SMS) */}
+                        {/* Notify Customer (Email) */}
                         {user?.role !== 'customer' && inv.status !== 'cancelled' && (
                           <button
                             onClick={() => {
@@ -348,7 +348,7 @@ export function Invoices({ onOpenBillingRun }) {
                               setNotifyType(inv.status === 'paid' ? 'payment_receipt' : 'invoice_due');
                             }}
                             className="p-1.5 rounded hover:bg-indigo-50 text-indigo-600 hover:text-indigo-800"
-                            title="Send Email & SMS Notification / Receipt"
+                            title="Send Email Notification / Receipt"
                           >
                             <Mail className="w-3.5 h-3.5" />
                           </button>

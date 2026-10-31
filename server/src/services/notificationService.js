@@ -44,11 +44,7 @@ export function getAllSettings() {
     'SMTP_SECURE',
     'SMTP_USER',
     'SMTP_PASS',
-    'EMAIL_FROM',
-    'TWILIO_ACCOUNT_SID',
-    'TWILIO_AUTH_TOKEN',
-    'TWILIO_FROM_PHONE',
-    'FAST2SMS_API_KEY'
+    'EMAIL_FROM'
   ];
 
   const settings = {};
@@ -116,88 +112,16 @@ export async function sendRealEmail({ to, subject, html, text = '' }) {
     return {
       success: true,
       delivered: false,
-      notice: 'SMTP credentials not configured yet. Configure SMTP in Email & SMS Settings to deliver live emails.'
+      notice: 'SMTP credentials not configured yet. Configure SMTP in Email Gateway Settings to deliver live emails.'
     };
   }
 }
 
 /**
- * Send real SMS to recipient phone number
+ * Send real SMS (Disabled - system uses live Email Gateway)
  */
-export async function sendRealSMS({ to, message }) {
-  if (!to) return { success: false, delivered: false, error: 'No phone number provided' };
-
-  // 1. Try Twilio
-  const twilioSid = getSetting('TWILIO_ACCOUNT_SID');
-  const twilioAuth = getSetting('TWILIO_AUTH_TOKEN');
-  const twilioFrom = getSetting('TWILIO_FROM_PHONE');
-
-  if (twilioSid && twilioAuth && twilioFrom) {
-    try {
-      console.log(`[SMS] Sending real SMS to ${to} via Twilio...`);
-      const url = `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`;
-      const bodyParams = new URLSearchParams();
-      bodyParams.append('To', to);
-      bodyParams.append('From', twilioFrom);
-      bodyParams.append('Body', message);
-
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Basic ' + Buffer.from(`${twilioSid}:${twilioAuth}`).toString('base64'),
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: bodyParams.toString()
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.message || 'Twilio API error');
-      }
-
-      console.log(`[SMS] Real SMS dispatched to ${to} via Twilio! SID: ${data.sid}`);
-      return { success: true, delivered: true, provider: 'twilio', sid: data.sid };
-    } catch (err) {
-      console.error(`[SMS Error] Failed to send via Twilio to ${to}:`, err.message);
-      return { success: false, delivered: false, error: err.message };
-    }
-  }
-
-  // 2. Try Fast2SMS (popular in India for +91 numbers)
-  const fast2smsKey = getSetting('FAST2SMS_API_KEY');
-  const cleanPhone = to.replace(/[^0-9]/g, '');
-  if (fast2smsKey && (cleanPhone.length === 10 || cleanPhone.startsWith('91'))) {
-    try {
-      const numbers = cleanPhone.length > 10 ? cleanPhone.slice(-10) : cleanPhone;
-      console.log(`[SMS] Sending real SMS to ${numbers} via Fast2SMS...`);
-      const res = await fetch('https://www.fast2sms.com/dev/bulkV2', {
-        method: 'POST',
-        headers: {
-          'authorization': fast2smsKey,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          route: 'q',
-          message,
-          language: 'english',
-          flash: 0,
-          numbers
-        })
-      });
-      const data = await res.json();
-      console.log(`[SMS] Fast2SMS response:`, data);
-      return { success: true, delivered: true, provider: 'fast2sms', data };
-    } catch (err) {
-      console.error(`[SMS Error] Fast2SMS error:`, err.message);
-    }
-  }
-
-  console.log(`[SMS Notice] SMS prepared for ${to}: "${message}". Configure Twilio/Fast2SMS in Settings to dispatch directly to mobile.`);
-  return {
-    success: true,
-    delivered: false,
-    notice: 'SMS gateway not configured yet. Configure Twilio or Fast2SMS in Settings to deliver live mobile texts.'
-  };
+export async function sendRealSMS() {
+  return { success: false, delivered: false, disabled: true, message: 'SMS is disabled. Notifications are delivered via direct Email Gateway.' };
 }
 
 /**
@@ -518,7 +442,7 @@ export function buildPaymentReceiptTemplate({ payment, invoice, customer, isFull
 }
 
 /**
- * Dispatch and record notification into database AND send real email/SMS
+ * Dispatch and record notification into database AND send real email
  */
 export async function dispatchNotification({
   customer_id,
@@ -526,7 +450,7 @@ export async function dispatchNotification({
   payment_id = null,
   subscription_id = null,
   type = 'invoice_due',
-  channel = 'both',
+  channel = 'email',
   subject,
   email_html,
   sms_body = null,
@@ -565,27 +489,19 @@ export async function dispatchNotification({
   `).run(
     'customer_notified',
     `Notification Dispatched: ${subject}`,
-    `Channel: ${channel.toUpperCase()} to ${recipient_email}${recipient_phone ? ' / ' + recipient_phone : ''}`,
+    `Email dispatched to ${recipient_email}`,
     invoice_id || subscription_id || customer_id,
     invoice_id ? 'invoice' : (subscription_id ? 'subscription' : 'customer'),
     created_by
   );
 
   // Attempt real email dispatch
-  if ((channel === 'email' || channel === 'both') && recipient_email) {
+  if (recipient_email) {
     sendRealEmail({
       to: recipient_email,
       subject,
       html: email_html
     }).catch(e => console.error('Real email dispatch background error:', e));
-  }
-
-  // Attempt real SMS dispatch
-  if ((channel === 'sms' || channel === 'both') && recipient_phone && sms_body) {
-    sendRealSMS({
-      to: recipient_phone,
-      message: sms_body
-    }).catch(e => console.error('Real SMS dispatch background error:', e));
   }
 
   return db.prepare('SELECT * FROM customer_notifications WHERE id = ?').get(notifId);

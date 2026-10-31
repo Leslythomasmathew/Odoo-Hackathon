@@ -8,8 +8,7 @@ import {
   dispatchNotification,
   getAllSettings,
   setSetting,
-  sendRealEmail,
-  sendRealSMS
+  sendRealEmail
 } from '../services/notificationService.js';
 
 const router = express.Router();
@@ -163,10 +162,10 @@ router.post('/preview', authenticate, (req, res) => {
 });
 
 /**
- * Dispatch notification (Email & SMS)
+ * Dispatch notification (Email)
  */
 router.post('/send', authenticate, requireRole(['admin', 'staff']), (req, res) => {
-  const { invoice_id, channel = 'both', type = 'invoice_due', custom_subject, custom_sms } = req.body;
+  const { invoice_id, type = 'invoice_due', custom_subject } = req.body;
 
   if (!invoice_id) {
     return res.status(400).json({ error: 'Invoice ID is required' });
@@ -214,17 +213,16 @@ router.post('/send', authenticate, requireRole(['admin', 'staff']), (req, res) =
     customer_id: customer.id,
     invoice_id: invoice.id,
     type,
-    channel,
+    channel: 'email',
     subject: custom_subject || generated.subject,
     email_html: generated.emailHtml,
-    sms_body: custom_sms || generated.smsBody,
     recipient_email: customer.email,
-    recipient_phone: customer.phone || '+1 (555) 019-2834',
+    recipient_phone: customer.phone,
     created_by: req.user.name
   });
 
   res.status(201).json({
-    message: `Notification successfully sent to ${customer.email} via ${channel.toUpperCase()}`,
+    message: `Notification successfully sent to ${customer.email} via Email`,
     notification: notif
   });
 });
@@ -290,12 +288,11 @@ router.post('/remind-all-due', authenticate, requireRole(['admin', 'staff']), (r
       customer_id: inv.customer_id,
       invoice_id: inv.id,
       type: isOverdue ? 'payment_reminder' : 'invoice_due',
-      channel: 'both',
+      channel: 'email',
       subject: generated.subject,
       email_html: generated.emailHtml,
-      sms_body: generated.smsBody,
       recipient_email: cust.email,
-      recipient_phone: cust.phone || '+1 (555) 019-2834',
+      recipient_phone: cust.phone,
       created_by: `${req.user.name} (Bulk Chaser)`
     });
 
@@ -309,7 +306,7 @@ router.post('/remind-all-due', authenticate, requireRole(['admin', 'staff']), (r
 
   res.json({
     count: dispatched.length,
-    message: `Dispatched payment reminders for ${dispatched.length} open invoices via Email & SMS.`,
+    message: `Dispatched payment reminders for ${dispatched.length} open invoices via Email.`,
     dispatched
   });
 });
@@ -322,9 +319,7 @@ router.get('/settings/config', authenticate, requireRole(['admin']), (req, res) 
   res.json({
     settings: {
       ...settings,
-      SMTP_PASS: settings.SMTP_PASS ? '********' : '',
-      TWILIO_AUTH_TOKEN: settings.TWILIO_AUTH_TOKEN ? '********' : '',
-      FAST2SMS_API_KEY: settings.FAST2SMS_API_KEY ? '********' : ''
+      SMTP_PASS: settings.SMTP_PASS ? '********' : ''
     }
   });
 });
@@ -344,7 +339,7 @@ router.post('/settings/config', authenticate, requireRole(['admin']), (req, res)
     }
   }
 
-  res.json({ message: 'Communication gateway settings saved successfully!' });
+  res.json({ message: 'Email gateway settings saved successfully!' });
 });
 
 /**
@@ -414,25 +409,6 @@ router.post('/test-email', authenticate, requireRole(['admin', 'staff']), async 
     res.status(400).json({ error: result.notice });
   } else {
     res.status(500).json({ error: result.error || 'Failed to dispatch test email.' });
-  }
-});
-
-/**
- * Send real test SMS
- */
-router.post('/test-sms', authenticate, requireRole(['admin', 'staff']), async (req, res) => {
-  const { to, message } = req.body;
-  if (!to) return res.status(400).json({ error: 'Recipient phone number is required.' });
-
-  const testMessage = message || `[Brightloop] Real SMS gateway test successful! Sent to ${to} on ${new Date().toLocaleTimeString()}.`;
-  const result = await sendRealSMS({ to, message: testMessage });
-
-  if (result.success && result.delivered) {
-    res.json({ message: `Real SMS dispatched directly to ${to} via ${result.provider.toUpperCase()}!` });
-  } else if (!result.delivered && result.notice) {
-    res.status(400).json({ error: result.notice });
-  } else {
-    res.status(500).json({ error: result.error || 'Failed to dispatch test SMS.' });
   }
 });
 

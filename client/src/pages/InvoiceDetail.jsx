@@ -94,7 +94,7 @@ export function InvoiceDetail() {
               className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold transition-colors"
             >
               <Mail className="w-3.5 h-3.5" />
-              <span>Notify Customer (Email & SMS)</span>
+              <span>Notify Customer (Email)</span>
             </button>
           )}
 

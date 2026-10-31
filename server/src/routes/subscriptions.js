@@ -297,7 +297,7 @@ router.post('/', authenticate, (req, res) => {
         const totalAmount = subLines.reduce((acc, l) => acc + (Number(l.amount) || 0), 0) || plan.price;
 
         if (customer) {
-          // 1. Subscription Confirmation (Real Email & SMS)
+          // 1. Subscription Confirmation (Real Email)
           const confirmTemplate = buildSubscriptionConfirmationTemplate({
             subscription: { id: subscriptionId, number: subNumber, start_date, next_billing_date: nextBilling },
             plan,
@@ -310,12 +310,10 @@ router.post('/', authenticate, (req, res) => {
             customer_id: customer.id,
             subscription_id: subscriptionId,
             type: 'subscription_renewal',
-            channel: 'both',
+            channel: 'email',
             subject: confirmTemplate.subject,
             email_html: confirmTemplate.emailHtml,
-            sms_body: confirmTemplate.smsBody,
             recipient_email: customer.email,
-            recipient_phone: customer.phone,
             created_by: req.user.name
           });
 
@@ -334,12 +332,10 @@ router.post('/', authenticate, (req, res) => {
               invoice_id: generatedInvoice.id,
               subscription_id: subscriptionId,
               type: 'invoice_due',
-              channel: 'both',
+              channel: 'email',
               subject: invReminder.subject,
               email_html: invReminder.emailHtml,
-              sms_body: invReminder.smsBody,
               recipient_email: customer.email,
-              recipient_phone: customer.phone,
               created_by: req.user.name
             });
           }
