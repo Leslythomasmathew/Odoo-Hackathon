@@ -60,24 +60,27 @@ export function Navbar({ onOpenBillingRun, onOpenCommandPalette }) {
 
   const roles = [
     {
-      label: 'Admin (Sarah Jenkins)',
+      tier: 'Tier 1 (Supreme)',
+      label: '👑 Admin (Sarah Jenkins)',
       email: 'admin@brightloop.com',
       role: 'admin',
       desc: 'Executive access, plans, taxes, staff oversight',
       badgeColor: 'bg-rose-50 text-rose-700 border-rose-200'
     },
     {
-      label: 'Staff (Marcus Vance)',
+      tier: 'Tier 2 (Operational)',
+      label: '🛡️ Staff (Marcus Vance)',
       email: 'staff@brightloop.com',
       role: 'staff',
       desc: 'Day-to-day operations, billing runs, support triage',
       badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200'
     },
     {
-      label: 'Customer (Alex Rivera)',
+      tier: 'Tier 3 (Self-Serve)',
+      label: '👤 Customer (Alex Rivera)',
       email: 'customer@acmecorp.com',
       role: 'customer',
-      desc: 'Self-service portal, subscriptions, payments & chat',
+      desc: 'Self-service portal, subscriptions, payments & 24/7 AI chat',
       badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
     }
   ];
@@ -96,9 +99,9 @@ export function Navbar({ onOpenBillingRun, onOpenCommandPalette }) {
   };
 
   const getRoleBadge = (role) => {
-    if (role === 'admin') return { label: 'Admin', bg: 'bg-rose-500/10 text-rose-700 border-rose-200' };
-    if (role === 'staff') return { label: 'Staff Lead', bg: 'bg-indigo-500/10 text-indigo-700 border-indigo-200' };
-    return { label: 'Customer Portal', bg: 'bg-emerald-500/10 text-emerald-700 border-emerald-200' };
+    if (role === 'admin') return { label: '👑 Admin (Supreme)', bg: 'bg-rose-500/10 text-rose-700 border-rose-200 shadow-xs' };
+    if (role === 'staff') return { label: '🛡️ Staff (Operations)', bg: 'bg-indigo-500/10 text-indigo-700 border-indigo-200' };
+    return { label: '👤 Customer Portal', bg: 'bg-emerald-500/10 text-emerald-700 border-emerald-200' };
   };
 
   const badge = getRoleBadge(user?.role);
@@ -281,6 +284,7 @@ export function Navbar({ onOpenBillingRun, onOpenCommandPalette }) {
                         className="text-[11px] font-bold text-primary-600 hover:underline"
                       >
                         View Full Activity Audit Log →
+
                       </button>
                     </div>
                   </div>

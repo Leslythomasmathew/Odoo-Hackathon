@@ -1,4 +1,5 @@
 import { db } from '../db/database.js';
+import { recordUsage } from './usageService.js';
 
 // Calculate billing period end date from start date and period string
 export function computePeriodEnd(startDateStr, period) {
@@ -323,6 +324,20 @@ export function generateInvoiceForSubscription(subId, options = {}) {
     );
 
     db.exec('COMMIT;');
+
+    // Record dynamic subscription feature usage event for invoice generation
+    try {
+      recordUsage({
+        subscription_id: sub.id,
+        feature_key: 'invoices_generation',
+        quantity: 1,
+        operation_type: 'invoice_generated',
+        source_ref: invNumber,
+        idempotency_key: `inv-gen-${invNumber}`
+      });
+    } catch {
+      // Non-blocking for soft policies or plans without invoice limit
+    }
 
     return {
       skipped: false,

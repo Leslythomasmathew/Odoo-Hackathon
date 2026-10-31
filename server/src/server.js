@@ -24,6 +24,9 @@ import paymentRoutes from './routes/payments.js';
 import reportRoutes from './routes/reports.js';
 import systemRoutes from './routes/system.js';
 import supportRoutes from './routes/support.js';
+import notificationRoutes from './routes/notifications.js';
+import usageRoutes from './routes/usage.js';
+import { checkAndSendAutomatedDueReminders } from './services/notificationService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -55,6 +58,8 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/support', supportRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/usage', usageRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -83,10 +88,18 @@ app.use((err, req, res, next) => {
   });
 });
 
-const isMainModule = process.argv[1] && process.argv[1].endsWith('server.js');
-if (isMainModule) {
-  app.listen(PORT, () => {
-    console.log(`Brightloop Subscription System API running on http://localhost:${PORT}`);
+const isTestMode = process.env.NODE_ENV === 'test' || process.argv.some(arg => arg.includes('test'));
+if (!isTestMode) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Brightloop Subscription System API running on http://localhost:${PORT} and http://127.0.0.1:${PORT}`);
+
+    // Background automated due reminder checks (runs on startup after 5s, then every hour)
+    setTimeout(() => {
+      checkAndSendAutomatedDueReminders().catch(e => console.error('Automated due reminder error:', e.message));
+    }, 5000);
+    setInterval(() => {
+      checkAndSendAutomatedDueReminders().catch(e => console.error('Automated due reminder error:', e.message));
+    }, 3600000);
   });
 }
 

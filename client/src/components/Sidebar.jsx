@@ -22,7 +22,9 @@ import {
   Sparkles,
   Bot,
   Zap,
-  HelpCircle
+  HelpCircle,
+  Mail,
+  Gauge
 } from 'lucide-react';
 
 export function Sidebar() {
@@ -79,6 +81,7 @@ export function Sidebar() {
             >
               {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
             </button>
+
           </div>
 
           <nav className="space-y-1">
@@ -171,7 +174,36 @@ export function Sidebar() {
       } transition-all duration-300 bg-white/90 backdrop-blur-md border-r border-slate-200/80 min-h-[calc(100vh-4rem)] p-3 flex flex-col justify-between select-none`}
     >
       <div className="space-y-6">
-        {/* Operations Section */}
+        {/* Hierarchy Banner */}
+        {!collapsed && (
+          isAdmin ? (
+            <div className="p-3 bg-gradient-to-r from-rose-50 to-purple-50 rounded-xl border border-rose-200 text-xs shadow-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">👑</span>
+                <div>
+                  <p className="font-black text-rose-950 leading-tight">Tier 1: Admin Supreme</p>
+                  <p className="text-[10px] text-rose-700 font-bold uppercase tracking-wider">Absolute System Authority</p>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1.5 leading-snug">
+                Full control of staff, catalog, variants, discounts & billing runs.
+              </p>
+            </div>
+          ) : (
+            <div className="p-3 bg-indigo-50 rounded-xl border border-indigo-200 text-xs shadow-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🛡️</span>
+                <div>
+                  <p className="font-black text-indigo-950 leading-tight">Tier 2: Internal Staff</p>
+                  <p className="text-[10px] text-indigo-700 font-bold uppercase tracking-wider">Operational Authority</p>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1.5 leading-snug">
+                Day-to-day sales, quotations, invoices & collections. Rules managed by Admin.
+              </p>
+            </div>
+          )
+        )}
         <div>
           <div className="flex items-center justify-between px-2 pt-1 mb-2">
             {!collapsed && (
@@ -197,6 +229,10 @@ export function Sidebar() {
             <NavLink to="/subscriptions" className={navClass}>
               <Repeat className="w-4 h-4 text-indigo-500 shrink-0" />
               {!collapsed && <span>Subscriptions</span>}
+            </NavLink>
+            <NavLink to="/usage" className={navClass}>
+              <Gauge className="w-4 h-4 text-cyan-600" />
+              <span>Subscription Usage Tracking</span>
             </NavLink>
 
             <NavLink to="/invoices" className={navClass}>
@@ -294,6 +330,13 @@ export function Sidebar() {
               <NavLink to="/staff" className={navClass}>
                 <UserCheck className="w-4 h-4 text-rose-500 shrink-0" />
                 {!collapsed && <span>Internal Staff</span>}
+              </NavLink>
+            )}
+
+            {isAdmin && (
+              <NavLink to="/communication-settings" className={navClass}>
+                <Mail className="w-4 h-4 text-primary-600" />
+                <span>Email Gateway</span>
               </NavLink>
             )}
 

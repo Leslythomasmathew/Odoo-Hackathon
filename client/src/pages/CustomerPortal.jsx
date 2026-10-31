@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import confetti from 'canvas-confetti';
-import { useAuth } from '../context/AuthContext';
 import { pdfService } from '../services/pdfService';
+import { StatusBadge } from '../components/StatusBadge';
+import { RecordPaymentModal } from '../components/RecordPaymentModal';
+import { ViewNotificationModal } from '../components/ViewNotificationModal';
+import { CustomerSubscribeModal } from '../components/CustomerSubscribeModal';
 import {
   Repeat,
   FileText,
@@ -35,7 +38,9 @@ import {
   ThumbsUp,
   Search,
   Ticket,
-  User
+  User,
+  Mail,
+  Bell
 } from 'lucide-react';
 
 export function CustomerPortal() {
@@ -53,7 +58,11 @@ export function CustomerPortal() {
   const [discounts, setDiscounts] = useState([]);
   const [tickets, setTickets] = useState([]);
   const [faqs, setFaqs] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [activeNotification, setActiveNotification] = useState(null);
+  const [subscribeModalOpen, setSubscribeModalOpen] = useState(false);
 
   // Modals
   const [paymentInvoice, setPaymentInvoice] = useState(null);
@@ -98,13 +107,14 @@ export function CustomerPortal() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [subData, invData, payData, discData, ticketData, faqData] = await Promise.all([
+      const [subData, invData, payData, discData, ticketData, faqData, notifData] = await Promise.all([
         authFetch('/api/subscriptions'),
         authFetch('/api/invoices'),
         authFetch('/api/payments').catch(() => ({ payments: [] })),
         authFetch('/api/discounts').catch(() => ({ discounts: [] })),
         authFetch('/api/support/tickets').catch(() => ({ tickets: [] })),
-        authFetch('/api/support/faqs').catch(() => ({ faqs: [] }))
+        authFetch('/api/support/faqs').catch(() => ({ faqs: [] })),
+        authFetch('/api/notifications').catch(() => ({ notifications: [], unread_count: 0 }))
       ]);
 
       setSubscriptions(subData.subscriptions || []);
@@ -113,6 +123,8 @@ export function CustomerPortal() {
       setDiscounts(discData.discounts || []);
       setTickets(ticketData.tickets || []);
       setFaqs(faqData.faqs || []);
+      setNotifications(notifData.notifications || []);
+      setUnreadCount(notifData.unread_count || 0);
     } catch (err) {
       console.error('Failed to load portal data:', err);
     } finally {
@@ -124,12 +136,12 @@ export function CustomerPortal() {
     loadData();
     const params = new URLSearchParams(window.location.search);
     const tabParam = params.get('tab');
-    if (tabParam && ['subscriptions', 'invoices', 'payments', 'discounts', 'support'].includes(tabParam)) {
+    if (tabParam && ['subscriptions', 'invoices', 'payments', 'discounts', 'support', 'messages'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
 
     const handleTabSwitch = (e) => {
-      if (e.detail && ['subscriptions', 'invoices', 'payments', 'discounts', 'support'].includes(e.detail)) {
+      if (e.detail && ['subscriptions', 'invoices', 'payments', 'discounts', 'support', 'messages'].includes(e.detail)) {
         setActiveTab(e.detail);
       }
     };
@@ -150,13 +162,25 @@ export function CustomerPortal() {
     return () => window.removeEventListener('pay-invoice-modal', handleOpenPay);
   }, [invoices]);
 
+  const handleOpenNotification = async (notif) => {
+    setActiveNotification(notif);
+    if (notif.status !== 'read') {
+      try {
+        await authFetch(`/api/notifications/${notif.id}/read`, { method: 'PATCH' });
+        setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, status: 'read' } : n));
+        setUnreadCount(prev => Math.max(0, prev - 1));
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  };
+
   // Self-service transition (pause, resume, renew, close)
   const handleTransition = async (subId, action) => {
     if (action === 'close') {
       const confirmClose = window.confirm('Are you sure you want to close this subscription? Service will discontinue at the end of the period.');
       if (!confirmClose) return;
     }
-
     try {
       await authFetch(`/api/subscriptions/${subId}/transition`, {
         method: 'POST',
@@ -473,7 +497,6 @@ export function CustomerPortal() {
             </div>
           </div>
 
-          {/* Quick Action Interactive Buttons */}
           <div className="flex items-center gap-2.5 flex-wrap">
             <button
               onClick={handleBillingDaySimulation}
@@ -1691,6 +1714,74 @@ export function CustomerPortal() {
       )}
 
       {/* ========================================================================= */}
+      {/* TAB 6: MESSAGES & RECEIPTS (NOTIFICATIONS)                                */}
+      {/* ========================================================================= */}
+      {activeTab === 'messages' && (
+        <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Mail className="w-4 h-4 text-primary-600" />
+                <span>Inbox • Payment Receipts & Due Alerts</span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                All official billing notices, payment receipts, and payment reminders sent via Email.
+              </p>
+            </div>
+          </div>
+          {notifications.length === 0 ? (
+            <div className="py-12 text-center text-slate-400 text-xs">
+              <Mail className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+              <span>No notifications or receipts yet.</span>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden text-xs">
+              {notifications.map((notif) => (
+                <div
+                  key={notif.id}
+                  className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition ${
+                    notif.status !== 'read' ? 'bg-primary-50/40 hover:bg-primary-50/70' : 'hover:bg-slate-50/60'
+                  }`}
+                >
+                  <div className="space-y-1.5 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        notif.type === 'payment_receipt'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {notif.type.replace('_', ' ')}
+                      </span>
+                      {notif.status !== 'read' && (
+                        <span className="w-2 h-2 rounded-full bg-primary-600"></span>
+                      )}
+                    </div>
+                    <div className="font-bold text-slate-900 text-sm">
+                      {notif.subject}
+                    </div>
+                    <div className="text-[10px] text-slate-400">
+                      Dispatched on {notif.sent_at} • Delivered to: {notif.recipient_email}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenNotification(notif)}
+                      className="px-3 py-1.5 rounded-lg bg-primary-600 hover:bg-primary-700 text-white font-semibold text-xs shadow-sm flex items-center gap-1.5"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>View Receipt / Notice</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ========================================================================= */}
       {/* MODAL 1: CHECKOUT & PAYMENT MODAL                                         */}
       {/* ========================================================================= */}
       {paymentInvoice && (
@@ -2243,6 +2334,22 @@ export function CustomerPortal() {
           </div>
         </div>
       )}
+
+      {/* View Notification Details Modal */}
+      {activeNotification && (
+        <ViewNotificationModal
+          isOpen={!!activeNotification}
+          onClose={() => setActiveNotification(null)}
+          notification={activeNotification}
+        />
+      )}
+
+      {/* Customer Subscribe Modal */}
+      <CustomerSubscribeModal
+        isOpen={subscribeModalOpen}
+        onClose={() => setSubscribeModalOpen(false)}
+        onSubscribed={loadData}
+      />
     </div>
   );
 }

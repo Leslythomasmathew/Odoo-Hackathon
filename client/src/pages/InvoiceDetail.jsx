@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import { PrintableInvoice } from '../components/PrintableInvoice';
 import { RecordPaymentModal } from '../components/RecordPaymentModal';
 import { ChaseReminderModal } from '../components/ChaseReminderModal';
-import { CheckCircle2, XCircle, Send, CreditCard, AlertTriangle } from 'lucide-react';
+import { NotifyCustomerModal } from '../components/NotifyCustomerModal';
+import { CheckCircle2, XCircle, Send, CreditCard, AlertTriangle, Mail } from 'lucide-react';
 
 export function InvoiceDetail() {
   const { id } = useParams();
@@ -16,6 +17,7 @@ export function InvoiceDetail() {
   const [loading, setLoading] = useState(true);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [chaseModalOpen, setChaseModalOpen] = useState(false);
+  const [notifyModalOpen, setNotifyModalOpen] = useState(false);
 
   const loadInvoice = async () => {
     try {
@@ -86,6 +88,16 @@ export function InvoiceDetail() {
             </button>
           )}
 
+          {user?.role !== 'customer' && invoice.status !== 'cancelled' && (
+            <button
+              onClick={() => setNotifyModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-xs font-bold transition-colors"
+            >
+              <Mail className="w-3.5 h-3.5" />
+              <span>Notify Customer (Email)</span>
+            </button>
+          )}
+
           {invoice.is_overdue && user?.role !== 'customer' && (
             <button
               onClick={() => setChaseModalOpen(true)}
@@ -131,6 +143,17 @@ export function InvoiceDetail() {
           onClose={() => setChaseModalOpen(false)}
           invoice={invoice}
           onChaseSent={loadInvoice}
+        />
+      )}
+
+      {/* Notify Customer Modal */}
+      {notifyModalOpen && (
+        <NotifyCustomerModal
+          isOpen={notifyModalOpen}
+          onClose={() => setNotifyModalOpen(false)}
+          invoice={invoice}
+          initialType={invoice.status === 'paid' ? 'payment_receipt' : 'invoice_due'}
+          onSent={loadInvoice}
         />
       )}
     </div>

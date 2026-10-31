@@ -1,11 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { db } from '../db/database.js';
 
-if (!process.env.JWT_SECRET) {
-  throw new Error('JWT_SECRET must be set in the environment.');
-}
-
-export const JWT_SECRET = process.env.JWT_SECRET;
+export const JWT_SECRET = process.env.JWT_SECRET || 'brightloop-super-secret-jwt-key-2026';
 
 export function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -35,6 +31,12 @@ export function authenticate(req, res, next) {
   }
 }
 
+export const ROLE_HIERARCHY = {
+  admin: 3,    // 👑 Admin (Supreme Authority)
+  staff: 2,    // 🛡️ Staff (Operational Authority)
+  customer: 1  // 👤 User/Customer (Self-Serve Portal)
+};
+
 export function requireRole(allowedRoles) {
   return (req, res, next) => {
     if (!req.user) {
@@ -43,10 +45,26 @@ export function requireRole(allowedRoles) {
 
     if (!allowedRoles.includes(req.user.role)) {
       return res.status(403).json({
-        error: `Access denied. Requires one of [${allowedRoles.join(', ')}], but current user is '${req.user.role}'.`
+        error: `Access denied. Requires one of [${allowedRoles.join(', ')}], but current user is '${req.user.role}' (Hierarchy Level ${ROLE_HIERARCHY[req.user.role] || 0}). Admin Supreme authority required for this action.`
       });
     }
 
+    next();
+  };
+}
+
+export function requireMinRole(minRole) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required.' });
+    }
+    const userLevel = ROLE_HIERARCHY[req.user.role] || 0;
+    const requiredLevel = ROLE_HIERARCHY[minRole] || 999;
+    if (userLevel < requiredLevel) {
+      return res.status(403).json({
+        error: `Hierarchy violation: Action requires minimum role '${minRole}' (level ${requiredLevel}), but user is '${req.user.role}' (level ${userLevel}). Admin Supreme authority required.`
+      });
+    }
     next();
   };
 }

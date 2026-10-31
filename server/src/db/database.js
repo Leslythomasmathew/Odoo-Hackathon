@@ -11,7 +11,8 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const dbPath = path.join(dataDir, 'brightloop.sqlite');
+const dbFilename = process.env.NODE_ENV === 'test' ? 'brightloop.test.sqlite' : 'brightloop.sqlite';
+const dbPath = path.join(dataDir, dbFilename);
 export const db = new DatabaseSync(dbPath);
 
 // Enable WAL mode and foreign keys for high performance and integrity
@@ -260,6 +261,32 @@ export function initDatabase() {
       created_at TEXT DEFAULT (datetime('now'))
     );
 
+    -- Customer Notifications / Email Dispatches
+    CREATE TABLE IF NOT EXISTS customer_notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      invoice_id INTEGER REFERENCES invoices(id) ON DELETE SET NULL,
+      payment_id INTEGER REFERENCES payments(id) ON DELETE SET NULL,
+      subscription_id INTEGER REFERENCES subscriptions(id) ON DELETE SET NULL,
+      type TEXT NOT NULL CHECK(type IN ('invoice_due', 'payment_reminder', 'payment_receipt', 'subscription_renewal', 'general')),
+      channel TEXT NOT NULL CHECK(channel IN ('email', 'sms', 'both')) DEFAULT 'email',
+      recipient_email TEXT,
+      recipient_phone TEXT,
+      subject TEXT NOT NULL,
+      email_html TEXT NOT NULL,
+      sms_body TEXT,
+      status TEXT NOT NULL DEFAULT 'delivered' CHECK(status IN ('sent', 'delivered', 'read')),
+      sent_at TEXT DEFAULT (datetime('now')),
+      read_at TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    -- System Configuration Settings (SMTP, Email gateway, etc.)
+    CREATE TABLE IF NOT EXISTS system_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
     -- Performance Indexes for sub-second queries with 10,000+ records
     CREATE INDEX IF NOT EXISTS idx_subs_status ON subscriptions(status);
     CREATE INDEX IF NOT EXISTS idx_subs_customer ON subscriptions(customer_id);
@@ -273,5 +300,118 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_tickets_user ON support_tickets(user_id);
     CREATE INDEX IF NOT EXISTS idx_tickets_status ON support_tickets(status);
     CREATE INDEX IF NOT EXISTS idx_tickets_customer ON support_tickets(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_notif_customer ON customer_notifications(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_notif_invoice ON customer_notifications(invoice_id);
+    CREATE INDEX IF NOT EXISTS idx_notif_created ON customer_notifications(created_at);
+
+
+    -- =========================================================================
+    -- SUBSCRIPTION USAGE TRACKING MODULE (ADDITIVE SCHEMA)
+    -- =========================================================================
+
+    -- Dynamic Feature Catalog across industry sectors (General, Healthcare, Education, E-commerce, Transportation, etc.)
+    CREATE TABLE IF NOT EXISTS feature_catalog (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      key TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      sector TEXT NOT NULL DEFAULT 'general',
+      feature_type TEXT NOT NULL CHECK(feature_type IN ('access', 'quantity', 'consumption')),
+      unit TEXT NOT NULL DEFAULT 'count',
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    -- Plan Features Mapping with entitlements, policies, and overage rates
+    CREATE TABLE IF NOT EXISTS plan_features (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      plan_id INTEGER NOT NULL REFERENCES plans(id) ON DELETE CASCADE,
+      feature_id INTEGER NOT NULL REFERENCES feature_catalog(id) ON DELETE CASCADE,
+      allowance REAL,
+      is_unlimited INTEGER NOT NULL DEFAULT 0,
+      overage_allowed INTEGER NOT NULL DEFAULT 0,
+      overage_rate REAL NOT NULL DEFAULT 0.0,
+      reset_frequency TEXT NOT NULL DEFAULT 'billing_period' CHECK(reset_frequency IN ('billing_period', 'monthly', 'daily', 'never')),
+      policy TEXT NOT NULL DEFAULT 'soft_alert' CHECK(policy IN ('soft_alert', 'hard_limit', 'overage')),
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(plan_id, feature_id)
+    );
+
+    -- Usage Billing Periods (synchronizes with subscription billing cycles)
+    CREATE TABLE IF NOT EXISTS usage_periods (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      subscription_id INTEGER NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
+      period_start TEXT NOT NULL,
+      period_end TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'closed')),
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(subscription_id, period_start)
+    );
+
+    -- Aggregated Subscription Usage per feature in a period
+    CREATE TABLE IF NOT EXISTS subscription_usage (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      subscription_id INTEGER NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
+      feature_id INTEGER NOT NULL REFERENCES feature_catalog(id) ON DELETE CASCADE,
+      period_id INTEGER REFERENCES usage_periods(id) ON DELETE SET NULL,
+      usage_value REAL NOT NULL DEFAULT 0,
+      last_recorded_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(subscription_id, feature_id, period_id)
+    );
+
+    -- Idempotent Real-Time Usage Events (audit trail and time-series analytics)
+    CREATE TABLE IF NOT EXISTS usage_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      idempotency_key TEXT UNIQUE,
+      subscription_id INTEGER NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
+      feature_id INTEGER NOT NULL REFERENCES feature_catalog(id) ON DELETE CASCADE,
+      period_id INTEGER REFERENCES usage_periods(id) ON DELETE SET NULL,
+      quantity REAL NOT NULL,
+      operation_type TEXT NOT NULL,
+      source_ref TEXT,
+      metadata TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    -- Automated Usage Alerts (50%, 80%, 90%, 100% thresholds, deduplicated per period)
+    CREATE TABLE IF NOT EXISTS usage_alerts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      subscription_id INTEGER NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
+      feature_id INTEGER NOT NULL REFERENCES feature_catalog(id) ON DELETE CASCADE,
+      period_id INTEGER REFERENCES usage_periods(id) ON DELETE SET NULL,
+      threshold_percent INTEGER NOT NULL,
+      message TEXT NOT NULL,
+      severity TEXT NOT NULL CHECK(severity IN ('info', 'warning', 'critical', 'danger')),
+      is_read INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(subscription_id, feature_id, period_id, threshold_percent)
+    );
+
+    -- Usage Overage Charges (accumulated overage charges for billing integration)
+    CREATE TABLE IF NOT EXISTS usage_charges (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      subscription_id INTEGER NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
+      feature_id INTEGER NOT NULL REFERENCES feature_catalog(id) ON DELETE CASCADE,
+      period_id INTEGER REFERENCES usage_periods(id) ON DELETE SET NULL,
+      units_over REAL NOT NULL DEFAULT 0,
+      rate REAL NOT NULL DEFAULT 0,
+      amount REAL NOT NULL DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'invoiced', 'paid')),
+      invoice_id INTEGER REFERENCES invoices(id) ON DELETE SET NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(subscription_id, feature_id, period_id)
+    );
+
+    -- Performance Indexes for Usage Tracking
+    CREATE INDEX IF NOT EXISTS idx_feature_cat_key ON feature_catalog(key);
+    CREATE INDEX IF NOT EXISTS idx_feature_cat_sector ON feature_catalog(sector);
+    CREATE INDEX IF NOT EXISTS idx_plan_features_plan ON plan_features(plan_id);
+    CREATE INDEX IF NOT EXISTS idx_usage_periods_sub ON usage_periods(subscription_id);
+    CREATE INDEX IF NOT EXISTS idx_sub_usage_sub_period ON subscription_usage(subscription_id, period_id);
+    CREATE INDEX IF NOT EXISTS idx_usage_events_sub_created ON usage_events(subscription_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_usage_events_idempotency ON usage_events(idempotency_key);
+    CREATE INDEX IF NOT EXISTS idx_usage_alerts_sub ON usage_alerts(subscription_id, is_read);
+
   `);
 }

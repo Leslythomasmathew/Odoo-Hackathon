@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { StatusBadge } from '../components/StatusBadge';
 import { RecordPaymentModal } from '../components/RecordPaymentModal';
 import { ChaseReminderModal } from '../components/ChaseReminderModal';
+import { NotifyCustomerModal } from '../components/NotifyCustomerModal';
 import {
   FileText,
   Search,
@@ -14,7 +15,10 @@ import {
   CheckCircle,
   XCircle,
   AlertTriangle,
-  ArrowRight
+  ArrowRight,
+  Mail,
+  Bell,
+  RefreshCw
 } from 'lucide-react';
 
 export function Invoices({ onOpenBillingRun }) {
@@ -24,6 +28,7 @@ export function Invoices({ onOpenBillingRun }) {
   const [invoices, setInvoices] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [bulkReminding, setBulkReminding] = useState(false);
 
   const statusFilter = searchParams.get('status') || '';
   const overdueOnly = searchParams.get('overdue_only') === 'true';
@@ -31,6 +36,8 @@ export function Invoices({ onOpenBillingRun }) {
 
   const [paymentInvoice, setPaymentInvoice] = useState(null);
   const [chaseInvoice, setChaseInvoice] = useState(null);
+  const [notifyInvoice, setNotifyInvoice] = useState(null);
+  const [notifyType, setNotifyType] = useState('invoice_due');
 
   const loadInvoices = async () => {
     try {
@@ -73,6 +80,20 @@ export function Invoices({ onOpenBillingRun }) {
     setSearchParams(next);
   };
 
+  const handleBulkRemind = async () => {
+    if (!window.confirm('Send automated payment reminder notifications (Email) to all customers with due or overdue invoices?')) return;
+    try {
+      setBulkReminding(true);
+      const res = await authFetch('/api/notifications/remind-all-due', { method: 'POST' });
+      alert(res.message);
+      loadInvoices();
+    } catch (err) {
+      alert(err.message || 'Failed to dispatch bulk reminders.');
+    } finally {
+      setBulkReminding(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Top Header */}
@@ -88,13 +109,25 @@ export function Invoices({ onOpenBillingRun }) {
         </div>
 
         {user?.role !== 'customer' && (
-          <button
-            onClick={onOpenBillingRun}
-            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
-          >
-            <Zap className="w-4 h-4 fill-white" />
-            <span>Run Bulk Billing</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleBulkRemind}
+              disabled={bulkReminding}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold shadow-xs transition-colors disabled:opacity-50"
+              title="Automatically dispatch Email reminders to all customers with unpaid invoices"
+            >
+              {bulkReminding ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Bell className="w-3.5 h-3.5" />}
+              <span>{bulkReminding ? 'Dispatching...' : 'Bulk Remind Due'}</span>
+            </button>
+
+            <button
+              onClick={onOpenBillingRun}
+              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
+            >
+              <Zap className="w-4 h-4 fill-white" />
+              <span>Run Bulk Billing</span>
+            </button>
+          </div>
         )}
       </div>
 
@@ -307,6 +340,20 @@ export function Invoices({ onOpenBillingRun }) {
                           </button>
                         )}
 
+                        {/* Notify Customer (Email) */}
+                        {user?.role !== 'customer' && inv.status !== 'cancelled' && (
+                          <button
+                            onClick={() => {
+                              setNotifyInvoice(inv);
+                              setNotifyType(inv.status === 'paid' ? 'payment_receipt' : 'invoice_due');
+                            }}
+                            className="p-1.5 rounded hover:bg-indigo-50 text-indigo-600 hover:text-indigo-800"
+                            title="Send Email Notification / Receipt"
+                          >
+                            <Mail className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+
                         {/* Print */}
                         <Link
                           to={`/invoices/${inv.id}?print=true`}
@@ -342,6 +389,17 @@ export function Invoices({ onOpenBillingRun }) {
           onClose={() => setChaseInvoice(null)}
           invoice={chaseInvoice}
           onChaseSent={loadInvoices}
+        />
+      )}
+
+      {/* Notify Customer Modal */}
+      {notifyInvoice && (
+        <NotifyCustomerModal
+          isOpen={!!notifyInvoice}
+          onClose={() => setNotifyInvoice(null)}
+          invoice={notifyInvoice}
+          initialType={notifyType}
+          onSent={loadInvoices}
         />
       )}
     </div>

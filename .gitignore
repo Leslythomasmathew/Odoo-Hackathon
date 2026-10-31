@@ -9,6 +9,7 @@ client/dist/
 
 # Environment files
 .env
+.env.*
 server/.env
 *.env.local
 !*.env.example
