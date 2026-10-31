@@ -1,15 +1,18 @@
 {
-  "name": "make-a-horn",
-  "version": "1.0.0",
-  "description": "Brightloop Subscription Management System",
+  "name": "oodoo-hackathon",
+  "version": "0.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "server": "npm --prefix server start",
-    "server:dev": "npm --prefix server run dev",
-    "client": "npm --prefix client run dev",
-    "build": "npm --prefix client run build",
-    "start": "npm --prefix server start",
-    "seed": "npm --prefix server run seed",
-    "test": "npm --prefix server test"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^8.3.5"
+  },
+  "dependencies": {
+    "canvas-confetti": "^1.9.4",
+    "jspdf": "^4.2.1"
   }
 }
