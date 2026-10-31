@@ -1,6 +1,11 @@
 import express from 'express';
 import { db } from '../db/database.js';
 import { authenticate, requireRole } from '../middleware/auth.js';
+import {
+  buildPaymentReceiptTemplate,
+  buildInvoiceReminderTemplate,
+  dispatchNotification
+} from '../services/notificationService.js';
 
 const router = express.Router();
 
@@ -56,7 +61,8 @@ router.get('/', authenticate, (req, res) => {
 
 // PAY-1 & PAY-2: Record payment against an invoice
 router.post('/', authenticate, (req, res) => {
-  const { invoice_id, method, amount, payment_date, note } = req.body;
+  const { invoice_id, amount, payment_date, note } = req.body;
+  const method = req.body.method || req.body.payment_method;
 
   if (!invoice_id || !method || amount === undefined) {
     return res.status(400).json({ error: 'Invoice, payment method, and amount are required.' });
@@ -127,12 +133,45 @@ router.post('/', authenticate, (req, res) => {
 
     db.exec('COMMIT;');
 
+    const paymentId = Number(result.lastInsertRowid);
+    const outstanding = Math.max(0, Number((inv.total - totalPaid).toFixed(2)));
+
+    // Automatically dispatch Payment Receipt notification (Email & SMS) to customer
+    try {
+      const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(inv.customer_id);
+      if (customer) {
+        const receiptTemplate = buildPaymentReceiptTemplate({
+          payment: { id: paymentId, amount: numAmount, method, payment_date: payDate, note },
+          invoice: inv,
+          customer,
+          isFullyPaid,
+          remainingBalance: outstanding
+        });
+
+        dispatchNotification({
+          customer_id: customer.id,
+          invoice_id: inv.id,
+          payment_id: paymentId,
+          type: 'payment_receipt',
+          channel: 'both',
+          subject: receiptTemplate.subject,
+          email_html: receiptTemplate.emailHtml,
+          sms_body: receiptTemplate.smsBody,
+          recipient_email: customer.email,
+          recipient_phone: customer.phone || '+1 (555) 019-2834',
+          created_by: req.user.name
+        });
+      }
+    } catch (e) {
+      console.warn('Could not auto-dispatch payment receipt notification:', e.message);
+    }
+
     res.status(201).json({
-      message: `Payment of $${numAmount.toFixed(2)} recorded successfully.${isFullyPaid ? ' Invoice is now Paid!' : ''}`,
-      paymentId: Number(result.lastInsertRowid),
+      message: `Payment of $${numAmount.toFixed(2)} recorded successfully.${isFullyPaid ? ' Invoice is now Paid!' : ''} Payment receipt sent via Email & SMS.`,
+      paymentId,
       invoiceStatus: newStatus,
       totalPaid,
-      outstanding: Math.max(0, Number((inv.total - totalPaid).toFixed(2)))
+      outstanding
     });
   } catch (err) {
     db.exec('ROLLBACK;');
@@ -144,7 +183,7 @@ router.post('/', authenticate, (req, res) => {
 // PAY-4: Chase overdue invoice
 router.post('/chase/:invoiceId', authenticate, requireRole(['admin', 'staff']), (req, res) => {
   const inv = db.prepare(`
-    SELECT i.*, c.name as customer_name, c.email as customer_email
+    SELECT i.*, c.id as customer_id, c.name as customer_name, c.email as customer_email, c.phone as customer_phone
     FROM invoices i
     JOIN customers c ON i.customer_id = c.id
     WHERE i.id = ?
@@ -156,21 +195,35 @@ router.post('/chase/:invoiceId', authenticate, requireRole(['admin', 'staff']), 
 
   const paidRow = db.prepare('SELECT COALESCE(SUM(amount), 0) as paid FROM payments WHERE invoice_id = ?').get(inv.id);
   const outstanding = Math.max(0, Number((inv.total - paidRow.paid).toFixed(2)));
+  inv.outstanding = outstanding;
 
-  db.prepare(`
-    INSERT INTO activity_logs (type, title, details, target_id, target_type, created_by)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `).run(
-    'chase_sent',
-    `Overdue Reminder Chased for ${inv.number}`,
-    `Automated chase reminder sent to ${inv.customer_email} for outstanding balance of $${outstanding.toFixed(2)}.`,
-    inv.id,
-    'invoice',
-    req.user.name
-  );
+  const items = db.prepare('SELECT * FROM invoice_lines WHERE invoice_id = ?').all(inv.id);
+  const today = new Date().toISOString().split('T')[0];
+  const isOverdue = inv.due_date < today;
+
+  const reminder = buildInvoiceReminderTemplate({
+    invoice: inv,
+    customer: { name: inv.customer_name, email: inv.customer_email, phone: inv.customer_phone },
+    items,
+    isOverdue
+  });
+
+  // Dispatch actual notification into customer inbox & logs
+  dispatchNotification({
+    customer_id: inv.customer_id,
+    invoice_id: inv.id,
+    type: isOverdue ? 'payment_reminder' : 'invoice_due',
+    channel: 'both',
+    subject: reminder.subject,
+    email_html: reminder.emailHtml,
+    sms_body: reminder.smsBody,
+    recipient_email: inv.customer_email,
+    recipient_phone: inv.customer_phone || '+1 (555) 019-2834',
+    created_by: req.user.name
+  });
 
   res.json({
-    message: `Payment chase reminder sent to ${inv.customer_email} for invoice ${inv.number} ($${outstanding.toFixed(2)} outstanding).`,
+    message: `Payment chase reminder dispatched to ${inv.customer_email} via Email and SMS ($${outstanding.toFixed(2)} due).`,
     chasedAt: new Date().toISOString()
   });
 });

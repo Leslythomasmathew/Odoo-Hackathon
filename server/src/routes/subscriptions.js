@@ -1,6 +1,12 @@
 import express from 'express';
 import { db } from '../db/database.js';
 import { authenticate, requireRole } from '../middleware/auth.js';
+import {
+  buildSubscriptionConfirmationTemplate,
+  buildInvoiceReminderTemplate,
+  dispatchNotification
+} from '../services/notificationService.js';
+import { generateInvoiceForSubscription } from '../services/billingService.js';
 
 const router = express.Router();
 
@@ -149,9 +155,9 @@ router.get('/:id', authenticate, (req, res) => {
   });
 });
 
-// SUB-1 to SUB-4: Create subscription (Admin & Staff)
-router.post('/', authenticate, requireRole(['admin', 'staff']), (req, res) => {
-  const {
+// SUB-1 to SUB-4: Create subscription (Admin, Staff, or Customer Self-Service)
+router.post('/', authenticate, (req, res) => {
+  let {
     customer_id,
     plan_id,
     start_date,
@@ -161,6 +167,15 @@ router.post('/', authenticate, requireRole(['admin', 'staff']), (req, res) => {
     notes,
     lines
   } = req.body;
+
+  // If customer creates subscription from self-service portal
+  if (req.user.role === 'customer') {
+    const cust = db.prepare('SELECT id FROM customers WHERE user_id = ?').get(req.user.id);
+    if (!cust) return res.status(403).json({ error: 'Customer profile not found.' });
+    customer_id = cust.id;
+    status = 'active'; // Customer self-subscription becomes active immediately
+    if (!start_date) start_date = new Date().toISOString().split('T')[0];
+  }
 
   if (!customer_id || !plan_id || !start_date) {
     return res.status(400).json({ error: 'Customer, plan, and start date are required.' });
@@ -257,10 +272,88 @@ router.post('/', authenticate, requireRole(['admin', 'staff']), (req, res) => {
 
     db.exec('COMMIT;');
 
+    // If subscription is created as active or confirmed, auto-generate cycle invoice and dispatch notifications
+    let generatedInvoice = null;
+    if (status === 'active' || status === 'confirmed') {
+      try {
+        const invRes = generateInvoiceForSubscription(subscriptionId, start_date);
+        if (invRes && invRes.invoiceId) {
+          generatedInvoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(invRes.invoiceId);
+        }
+      } catch (invErr) {
+        console.warn('Initial invoice generation notice:', invErr.message);
+      }
+
+      // Auto-dispatch subscription confirmation & invoice notices
+      try {
+        const customer = db.prepare('SELECT * FROM customers WHERE id = ?').get(Number(customer_id));
+        const subLines = db.prepare(`
+          SELECT sl.*, p.name as product_name
+          FROM subscription_lines sl
+          JOIN products p ON sl.product_id = p.id
+          WHERE sl.subscription_id = ?
+        `).all(subscriptionId);
+
+        const totalAmount = subLines.reduce((acc, l) => acc + (Number(l.amount) || 0), 0) || plan.price;
+
+        if (customer) {
+          // 1. Subscription Confirmation (Real Email & SMS)
+          const confirmTemplate = buildSubscriptionConfirmationTemplate({
+            subscription: { id: subscriptionId, number: subNumber, start_date, next_billing_date: nextBilling },
+            plan,
+            customer,
+            lines: subLines,
+            totalAmount
+          });
+
+          dispatchNotification({
+            customer_id: customer.id,
+            subscription_id: subscriptionId,
+            type: 'subscription_renewal',
+            channel: 'both',
+            subject: confirmTemplate.subject,
+            email_html: confirmTemplate.emailHtml,
+            sms_body: confirmTemplate.smsBody,
+            recipient_email: customer.email,
+            recipient_phone: customer.phone,
+            created_by: req.user.name
+          });
+
+          // 2. Invoice Due Notification if invoice created
+          if (generatedInvoice) {
+            const invItems = db.prepare('SELECT * FROM invoice_lines WHERE invoice_id = ?').all(generatedInvoice.id);
+            const invReminder = buildInvoiceReminderTemplate({
+              invoice: generatedInvoice,
+              customer,
+              items: invItems,
+              isOverdue: false
+            });
+
+            dispatchNotification({
+              customer_id: customer.id,
+              invoice_id: generatedInvoice.id,
+              subscription_id: subscriptionId,
+              type: 'invoice_due',
+              channel: 'both',
+              subject: invReminder.subject,
+              email_html: invReminder.emailHtml,
+              sms_body: invReminder.smsBody,
+              recipient_email: customer.email,
+              recipient_phone: customer.phone,
+              created_by: req.user.name
+            });
+          }
+        }
+      } catch (notifErr) {
+        console.error('Subscription confirmation notification error:', notifErr.message);
+      }
+    }
+
     res.status(201).json({
-      message: 'Subscription created successfully.',
+      message: 'Subscription created successfully. Confirmation & invoice notices dispatched.',
       subscriptionId,
-      number: subNumber
+      number: subNumber,
+      invoiceId: generatedInvoice?.id
     });
   } catch (err) {
     db.exec('ROLLBACK;');

@@ -222,6 +222,33 @@ export function initDatabase() {
       created_at TEXT DEFAULT (datetime('now'))
     );
 
+    -- Customer Notifications / Email & Message Dispatches
+    CREATE TABLE IF NOT EXISTS customer_notifications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      invoice_id INTEGER REFERENCES invoices(id) ON DELETE SET NULL,
+      payment_id INTEGER REFERENCES payments(id) ON DELETE SET NULL,
+      subscription_id INTEGER REFERENCES subscriptions(id) ON DELETE SET NULL,
+      type TEXT NOT NULL CHECK(type IN ('invoice_due', 'payment_reminder', 'payment_receipt', 'subscription_renewal', 'general')),
+      channel TEXT NOT NULL CHECK(channel IN ('email', 'sms', 'both')) DEFAULT 'both',
+      recipient_email TEXT,
+      recipient_phone TEXT,
+      subject TEXT NOT NULL,
+      email_html TEXT NOT NULL,
+      sms_body TEXT,
+      status TEXT NOT NULL DEFAULT 'delivered' CHECK(status IN ('sent', 'delivered', 'read')),
+      sent_at TEXT DEFAULT (datetime('now')),
+      read_at TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    -- System Configuration Settings (SMTP, SMS gateways, etc.)
+    CREATE TABLE IF NOT EXISTS system_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
     -- Performance Indexes for sub-second queries with 10,000+ records
     CREATE INDEX IF NOT EXISTS idx_subs_status ON subscriptions(status);
     CREATE INDEX IF NOT EXISTS idx_subs_customer ON subscriptions(customer_id);
@@ -232,5 +259,8 @@ export function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_invoices_due_date ON invoices(due_date);
     CREATE INDEX IF NOT EXISTS idx_payments_invoice ON payments(invoice_id);
     CREATE INDEX IF NOT EXISTS idx_payments_date ON payments(payment_date);
+    CREATE INDEX IF NOT EXISTS idx_notif_customer ON customer_notifications(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_notif_invoice ON customer_notifications(invoice_id);
+    CREATE INDEX IF NOT EXISTS idx_notif_created ON customer_notifications(created_at);
   `);
 }

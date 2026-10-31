@@ -27,6 +27,7 @@ import { StaffManagement } from './pages/StaffManagement';
 import { Reports } from './pages/Reports';
 import { CustomerPortal } from './pages/CustomerPortal';
 import { SystemBenchmark } from './pages/SystemBenchmark';
+import { CommunicationSettings } from './pages/CommunicationSettings';
 
 // Protected App Shell Layout
 function ProtectedLayout() {
@@ -73,6 +74,7 @@ function ProtectedLayout() {
             <Route path="/discounts" element={<Discounts />} />
             <Route path="/taxes" element={<Taxes />} />
             <Route path="/staff" element={<StaffManagement />} />
+            <Route path="/communication-settings" element={<CommunicationSettings />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/system" element={<SystemBenchmark />} />
             <Route path="*" element={<Navigate to="/" replace />} />

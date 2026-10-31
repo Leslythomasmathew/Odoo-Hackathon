@@ -15,7 +15,8 @@ import {
   UserCheck,
   BarChart3,
   Cpu,
-  UserCircle
+  UserCircle,
+  Mail
 } from 'lucide-react';
 
 export function Sidebar() {
@@ -173,6 +174,13 @@ export function Sidebar() {
               <NavLink to="/staff" className={navClass}>
                 <UserCheck className="w-4 h-4 text-rose-500" />
                 <span>Internal Staff</span>
+              </NavLink>
+            )}
+
+            {isAdmin && (
+              <NavLink to="/communication-settings" className={navClass}>
+                <Mail className="w-4 h-4 text-primary-600" />
+                <span>Email & SMS Gateway</span>
               </NavLink>
             )}
 

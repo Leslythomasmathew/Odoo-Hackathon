@@ -3,7 +3,9 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { StatusBadge } from '../components/StatusBadge';
 import { RecordPaymentModal } from '../components/RecordPaymentModal';
-import { CreditCard, Search, DollarSign, Clock, AlertTriangle, Plus } from 'lucide-react';
+import { NotifyCustomerModal } from '../components/NotifyCustomerModal';
+import { ViewNotificationModal } from '../components/ViewNotificationModal';
+import { CreditCard, Search, DollarSign, Clock, AlertTriangle, Plus, Mail, Eye } from 'lucide-react';
 
 export function Payments() {
   const { authFetch, user } = useAuth();
@@ -14,6 +16,7 @@ export function Payments() {
   const [search, setSearch] = useState('');
   const [unpaidInvoices, setUnpaidInvoices] = useState([]);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [notifyInvoice, setNotifyInvoice] = useState(null);
 
   const loadPayments = async () => {
     try {
@@ -120,6 +123,7 @@ export function Payments() {
                   <th className="py-3 px-4">Payment Date</th>
                   <th className="py-3 px-4">Note / Memo</th>
                   <th className="py-3 px-4 text-right">Amount Received</th>
+                  <th className="py-3 px-4 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -162,6 +166,17 @@ export function Payments() {
                     <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-600 text-sm">
                       +${Number(p.amount).toFixed(2)}
                     </td>
+
+                    <td className="py-3.5 px-4 text-right">
+                      <button
+                        type="button"
+                        onClick={() => setNotifyInvoice({ id: p.invoice_id, number: p.invoice_number })}
+                        className="p-1.5 rounded hover:bg-indigo-50 text-indigo-600 hover:text-indigo-800"
+                        title="Send / Preview Payment Receipt (Email & SMS)"
+                      >
+                        <Mail className="w-3.5 h-3.5" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -177,6 +192,17 @@ export function Payments() {
           onClose={() => setSelectedInvoice(null)}
           invoice={selectedInvoice}
           onPaymentRecorded={loadPayments}
+        />
+      )}
+
+      {/* Notify Customer Modal (Payment Receipt) */}
+      {notifyInvoice && (
+        <NotifyCustomerModal
+          isOpen={!!notifyInvoice}
+          onClose={() => setNotifyInvoice(null)}
+          invoice={notifyInvoice}
+          initialType="payment_receipt"
+          onSent={loadPayments}
         />
       )}
     </div>
