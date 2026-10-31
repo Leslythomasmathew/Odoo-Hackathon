@@ -55,7 +55,7 @@ function resolveAuthorizedSubscriptionId(req) {
     const custSub = db.prepare(`
       SELECT id FROM subscriptions
       WHERE customer_id = ? AND status IN ('active', 'paused', 'confirmed', 'draft')
-      ORDER BY (status = 'active') DESC, id DESC LIMIT 1
+      ORDER BY (status = 'active') DESC, id ASC LIMIT 1
     `).get(req.query.customer_id);
     return custSub ? custSub.id : null;
   }

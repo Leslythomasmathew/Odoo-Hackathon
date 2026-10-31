@@ -11,7 +11,8 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const dbPath = path.join(dataDir, 'brightloop.sqlite');
+const dbFilename = process.env.NODE_ENV === 'test' ? 'brightloop.test.sqlite' : 'brightloop.sqlite';
+const dbPath = path.join(dataDir, dbFilename);
 export const db = new DatabaseSync(dbPath);
 
 // Enable WAL mode and foreign keys for high performance and integrity

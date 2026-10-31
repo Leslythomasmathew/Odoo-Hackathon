@@ -59,18 +59,16 @@ export function SubscriptionUsageTracking() {
   const [simFeedback, setSimFeedback] = useState(null);
 
   // Load Subscriptions List
-  const loadSubscriptions = async () => {
+  const loadSubscriptions = async (forceSubId = null) => {
     try {
       setLoading(true);
       const res = await authFetch('/api/usage/subscriptions');
       const list = res.subscriptions || [];
       setSubscriptions(list);
       if (list.length > 0) {
-        if (!selectedSubId) {
-          setSelectedSubId(list[0].id);
-        } else {
-          loadUsageData(selectedSubId);
-        }
+        const subIdToLoad = forceSubId || (selectedSubId && list.some(s => s.id === selectedSubId) ? selectedSubId : list[0].id);
+        setSelectedSubId(subIdToLoad);
+        await loadUsageData(subIdToLoad);
       } else {
         // Customer has no active subscriptions
         setData({ noSubscription: true });
@@ -85,9 +83,10 @@ export function SubscriptionUsageTracking() {
 
   // Load Current Usage, Analytics & Alerts
   const loadUsageData = async (subId) => {
+    if (!subId) return;
     try {
       setLoading(true);
-      const queryParam = subId ? `?subscription_id=${subId}` : '';
+      const queryParam = `?subscription_id=${subId}`;
       const [usageRes, analyticsRes, alertsRes, chargesRes] = await Promise.all([
         authFetch(`/api/usage/current${queryParam}`),
         authFetch(`/api/usage/analytics${queryParam}`),
@@ -101,11 +100,12 @@ export function SubscriptionUsageTracking() {
       setCharges(chargesRes);
 
       // Auto-populate simulator dropdown with first available feature
-      if (usageRes.features && usageRes.features.length > 0 && !simFeature) {
-        setSimFeature(usageRes.features[0].feature_key);
+      if (usageRes.features && usageRes.features.length > 0) {
+        setSimFeature(prev => prev || usageRes.features[0].feature_key);
       }
     } catch (err) {
       console.error('Failed to load usage data:', err);
+      setData({ noSubscription: true });
     } finally {
       setLoading(false);
     }
@@ -114,12 +114,6 @@ export function SubscriptionUsageTracking() {
   useEffect(() => {
     loadSubscriptions();
   }, []);
-
-  useEffect(() => {
-    if (selectedSubId) {
-      loadUsageData(selectedSubId);
-    }
-  }, [selectedSubId]);
 
   // Open Feature Drilldown Details
   const handleOpenFeatureDetail = async (featureKey) => {
@@ -211,6 +205,16 @@ export function SubscriptionUsageTracking() {
             Your account ({user?.email}) does not have an active subscription yet. Feature usage tracking will automatically activate as soon as your subscription plan is confirmed.
           </p>
         </div>
+        <div className="flex justify-center gap-3">
+          <button
+            onClick={() => loadSubscriptions()}
+            className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center gap-2"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Refresh Telemetry</span>
+          </button>
+        </div>
+
         <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl text-left text-xs text-slate-600 space-y-2">
           <p className="font-bold text-slate-800 flex items-center gap-1.5">
             <Sparkles className="w-4 h-4 text-primary-600" />
@@ -325,7 +329,11 @@ export function SubscriptionUsageTracking() {
               </label>
               <select
                 value={selectedSubId || ''}
-                onChange={(e) => setSelectedSubId(Number(e.target.value))}
+                onChange={(e) => {
+                  const newId = Number(e.target.value);
+                  setSelectedSubId(newId);
+                  loadUsageData(newId);
+                }}
                 className="bg-primary-900 text-white text-xs rounded-lg px-2.5 py-1.5 border border-primary-700 focus:outline-hidden focus:ring-1 focus:ring-primary-400 cursor-pointer"
               >
                 {subscriptions.map(s => (
