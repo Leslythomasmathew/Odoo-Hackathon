@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
 import confetti from 'canvas-confetti';
 import { pdfService } from '../services/pdfService';
 import { StatusBadge } from '../components/StatusBadge';
@@ -82,6 +83,13 @@ export function CustomerPortal() {
   // Quantity stepper state
   const [newQuantity, setNewQuantity] = useState(1);
   const [updatingQty, setUpdatingQty] = useState(false);
+
+  // Success toast
+  const [successMsg, setSuccessMsg] = useState('');
+  const showSuccess = (msg) => {
+    setSuccessMsg(msg);
+    setTimeout(() => setSuccessMsg(''), 4000);
+  };
 
   // Billing run simulation state
   const [runningBilling, setRunningBilling] = useState(false);
@@ -183,11 +191,23 @@ export function CustomerPortal() {
       if (!confirmClose) return;
     }
     try {
-      await authFetch(`/api/subscriptions/${subId}/transition`, {
+      const result = await authFetch(`/api/subscriptions/${subId}/transition`, {
         method: 'POST',
         body: JSON.stringify({ action })
       });
       await loadData();
+      if (action === 'renew') {
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+        showSuccess(`✅ Subscription renewed successfully! New expiry: ${result.expiry_date || 'updated'}.`);
+      } else if (action === 'pause') {
+        showSuccess('⏸️ Subscription paused.');
+      } else if (action === 'resume') {
+        showSuccess('▶️ Subscription resumed successfully!');
+      } else if (action === 'close') {
+        showSuccess('❌ Subscription closed.');
+      } else {
+        showSuccess('✅ Action completed successfully.');
+      }
     } catch (err) {
       alert(err.message || 'Action failed');
     }

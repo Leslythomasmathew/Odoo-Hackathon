@@ -534,11 +534,14 @@ router.post('/:id/transition', authenticate, (req, res) => {
       newStatus = 'closed';
       break;
 
-    case 'renew':
+    case 'renew': {
       if (!sub.renewable) {
         return res.status(400).json({ error: 'This subscription plan is not configured as renewable.' });
       }
       const plan = db.prepare('SELECT billing_period FROM plans WHERE id = ?').get(sub.plan_id);
+      if (!plan) {
+        return res.status(400).json({ error: 'Associated plan not found. Cannot renew.' });
+      }
       const currentExpiry = new Date(sub.expiry_date || Date.now());
 
       if (plan.billing_period === 'yearly') {
@@ -548,11 +551,13 @@ router.post('/:id/transition', authenticate, (req, res) => {
       } else if (plan.billing_period === 'weekly') {
         currentExpiry.setDate(currentExpiry.getDate() + 7);
       } else {
-        currentExpiry.setDate(currentExpiry.getDate() + 1);
+        // Default fallback: 30 days
+        currentExpiry.setDate(currentExpiry.getDate() + 30);
       }
       newExpiry = currentExpiry.toISOString().split('T')[0];
       newStatus = 'active';
       break;
+    }
 
     default:
       return res.status(400).json({ error: `Unknown action '${action}'.` });

@@ -196,7 +196,7 @@ export function Login() {
               : 'text-slate-600 hover:text-slate-900'
           }`}
         >
-          <span>👤 Customer Portal (http://localhost:5174)</span>
+          <span>👤 Customer Portal</span>
         </button>
 
         <button
@@ -216,7 +216,7 @@ export function Login() {
       </div>
 
       {/* ========================================================================= */}
-      {/* 1. CUSTOMER PORTAL AUTH CARD (IDENTICAL TO http://localhost:5174)         */}
+      {/* 1. CUSTOMER PORTAL AUTH CARD */}
       {/* ========================================================================= */}
       {roleMode === 'customer' ? (
         <div className="casual-auth-container animate-in fade-in zoom-in-95 duration-200">
