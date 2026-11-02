@@ -98,46 +98,6 @@ Answers the finance lead's four core questions at a glance:
 
 ---
 
-## 🚀 Quick Start Guide
-
-### 1. Installation
-Install server and client dependencies:
-```bash
-# Server dependencies
-cd server
-npm install
-
-# Client dependencies
-cd ../client
-npm install
-```
-
-### 2. Build Frontend
-```bash
-cd client
-npm run build
-```
-
-### 3. Run Application
-Copy `server/.env.example` to `server/.env` and set `JWT_SECRET` to a unique, random value before starting the server.
-
-Start the production server (serves API + UI on port `5050`):
-```bash
-cd server
-npm start
-```
-Open **[http://localhost:5050](http://localhost:5050)** in your browser!
-
-### 4. Run Automated Acceptance Test Suite
-Execute the comprehensive 41-check acceptance test suite:
-```bash
-cd server
-npm test
-```
-Outputs passing verification for every rule in the specification checklist.
-
----
-
 ## 📁 Project Structure
 
 ```
